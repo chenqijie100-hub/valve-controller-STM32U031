@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-28",
+  "scope": "2A only; 2B deferred by user",
+  "baseline_zip_sha256": "28eb7d57ff226885927d711e86768f17a539ea2493e7110e33986b6090da38ea",
+  "git_commits": "Not executed: .git is read-only, automatic approval timed out twice. Manual script provided. No Push.",
+  "modified": [
+    "STM32_PROJECT/CMakeLists.txt",
+    "STM32_PROJECT/Core/Src/adc.c",
+    "STM32_PROJECT/Core/Src/main.c",
+    "STM32_PROJECT/STM32CubeIDE/.project",
+    "STM32_PROJECT/STM32_PROJECT.ioc",
+    "STM32_PROJECT/tests/mocks/adc.h",
+    "STM32_PROJECT/tests/run_phase1.py",
+    "STM32_PROJECT/tests/test_valve_app.c"
+  ],
+  "added": [
+    "STM32_PROJECT/Core/Inc/app_status.h",
+    "STM32_PROJECT/Core/Inc/battery_adc_port.h",
+    "STM32_PROJECT/Core/Inc/battery_monitor.h",
+    "STM32_PROJECT/Core/Src/app_status.c",
+    "STM32_PROJECT/Core/Src/battery_adc_port.c",
+    "STM32_PROJECT/Core/Src/battery_monitor.c",
+    "STM32_PROJECT/docs/phase2a-changes.json",
+    "STM32_PROJECT/docs/phase2a-plan.md",
+    "STM32_PROJECT/docs/phase2a-report.md",
+    "STM32_PROJECT/tests/test_app_status.c",
+    "STM32_PROJECT/tests/test_battery.c",
+    "STM32_PROJECT/tests/test_battery_port.c",
+    "STM32_PROJECT/tools/commit_phase2a.py"
+  ],
+  "protected_unchanged": [
+    "Core/Src/valve_control.c",
+    "Core/Inc/valve_control.h",
+    "Core/Src/valve_port.c",
+    "Core/Inc/valve_port.h",
+    "Core/Src/rs485_rx.c",
+    "Core/Inc/rs485_rx.h",
+    "Core/Inc/valve_config.h"
+  ],
+  "sha256": {
+    "STM32_PROJECT/CMakeLists.txt": "c2249302040a47514b61111967318fac8401ed17b554cd1594fde91910732419",
+    "STM32_PROJECT/Core/Inc/app_status.h": "407bcd102e862c09dd364a9012aee81a268262c8d68cf5491037dbc26927c933",
+    "STM32_PROJECT/Core/Inc/battery_adc_port.h": "3c3a804a6e54a1c0498fca591a60dfae990cbf1fc76d4a362c6b0d9bdae03bfe",
+    "STM32_PROJECT/Core/Inc/battery_monitor.h": "dc9df3ae424c8235873a37ea12c653bddd982878fca72128325d132fc9d7d01e",
+    "STM32_PROJECT/Core/Src/adc.c": "c5158d77fdf62186ebaa99af9a8a14cc13254f52a4dc9c34bac4c1e4e8cd8f6d",
+    "STM32_PROJECT/Core/Src/app_status.c": "a7cfb33a96f40d6028eec58658079d3ff4bbfd3d9df3c7276de7cb1dc7098e87",
+    "STM32_PROJECT/Core/Src/battery_adc_port.c": "2b96e62c780a8e470e63d8bd5eb0426c12ec44b6d0dfa2729a546f90199135e5",
+    "STM32_PROJECT/Core/Src/battery_monitor.c": "4105c809e6fe09c176dd95daf9b1d301e0c9c903b35b97baac6aca10b3f273e9",
+    "STM32_PROJECT/Core/Src/main.c": "2ead85028695469e8cea0de81fe0f5dca9c631c4428e0035b6107d7bcac292af",
+    "STM32_PROJECT/STM32CubeIDE/.project": "d4032c9308ba06f72ebffd121cc8e580e619fc9d639cceb054b3ebbe38a630ca",
+    "STM32_PROJECT/STM32_PROJECT.ioc": "ddace36c65a73add5c56a54e029a05e5ba70f368245c611d3bc1186b5cc49548",
+    "STM32_PROJECT/docs/phase2a-plan.md": "077c64bc6dbd6023486698f0581a770e8c2e51929682ede0f697d9b1f2ae5a40",
+    "STM32_PROJECT/docs/phase2a-report.md": "ace188df636ade461c4acd99b012a9d88809df771d1d0d503d883bd1cd937fb8",
+    "STM32_PROJECT/tests/mocks/adc.h": "eb21697c58a73e0668ccd0a60e94678f0745c61257b2d41a379abb5270d385be",
+    "STM32_PROJECT/tests/run_phase1.py": "65c805fcaab556fde23f982e2f94e251caa9c4ea8a6d61f29a534726573ef180",
+    "STM32_PROJECT/tests/test_app_status.c": "b06c07a099cea7dbce1675153d30b644d9997dba12a2be4d109aeb4a60ccec96",
+    "STM32_PROJECT/tests/test_battery.c": "0cf2de83624a869e9dd810b581d0b6fdcbbddd9bab09b8118c4516946ba0fe96",
+    "STM32_PROJECT/tests/test_battery_port.c": "2f631d0b11f69223b099b9200687063c10b8acd8cfd284f2351e785ac8e68c99",
+    "STM32_PROJECT/tests/test_valve_app.c": "12b9c73f4bf93356b58aa588575df6a4a4c78b76a28fae3b48f7760f22461822",
+    "STM32_PROJECT/tools/commit_phase2a.py": "f090ed25c01d7c10e6a5adfb1f77f31f684b9fc6a0edf521bf98a90c677ce976"
+  }
+}
