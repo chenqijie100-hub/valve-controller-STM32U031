@@ -7,6 +7,15 @@ static uint16_t calibration, raw[3];
 static uint8_t rank, count, position;
 static uint32_t window[4], sum;
 static BatteryResult attempt_result;
+uint8_t Battery_CanStop(void)
+{ return stage==UNAVAILABLE || (stage==IDLE && status.result!=BATTERY_NOT_READY); }
+void Battery_AfterStop(uint32_t now)
+{
+  if(stage!=IDLE)return;
+  status.result=BATTERY_NOT_READY;
+  count=position=0;sum=0;
+  wait_tick=now;wait_ms=0;
+}
 uint32_t Battery_SleepBudget(uint32_t now)
 {
   if(stage==UNAVAILABLE)return BATTERY_SAMPLE_PERIOD_MS;

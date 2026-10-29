@@ -6,13 +6,16 @@ volatile uint32_t rs485_rx_irq_bytes, rs485_rx_hw_errors, rs485_rx_overflows;
 static volatile uint8_t bytes[RX_SIZE];
 static volatile uint32_t head, tail;
 static volatile uint8_t damaged;
+static volatile uint8_t stop_resync;
 uint8_t RS485_RxBusy(void) { return damaged || head!=tail; }
+void RS485_RxAfterStop(void)
+{ tail=head;damaged=0;stop_resync=1; }
 
 void RS485_RxInit(void)
 {
   uint32_t mask = __get_PRIMASK();
   __disable_irq();
-  head = tail = 0; damaged = 0;
+  head = tail = 0; damaged = 0; stop_resync=0;
   if (USART1->ISR & USART_ISR_RXNE_RXFNE) (void)USART1->RDR;
   USART1->ICR = RX_ERRORS; /* Error bits and their W1C positions match. */
   USART1->CR3 |= USART_CR3_EIE;
@@ -26,6 +29,12 @@ void RS485_RxIRQ(void)
   uint8_t byte = 0;
   if (flags & USART_ISR_RXNE_RXFNE)
   { byte = (uint8_t)USART1->RDR; rs485_rx_irq_bytes++; }
+  if (stop_resync)
+  {
+    if(flags&RX_ERRORS) { USART1->ICR=flags&RX_ERRORS;rs485_rx_hw_errors++; }
+    if((flags&USART_ISR_RXNE_RXFNE) && !(flags&RX_ERRORS) && byte=='\n')stop_resync=0;
+    return; /* No tail of a Stop-interrupted command may execute. */
+  }
   if (flags & RX_ERRORS)
   {
     USART1->ICR = flags & RX_ERRORS;

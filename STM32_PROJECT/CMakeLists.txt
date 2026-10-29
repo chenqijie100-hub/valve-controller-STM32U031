@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/app_status.c
     Core/Src/power_manager.c
     Core/Src/power_port.c
+    Core/Src/power_rtc.c
     # Add user sources here
 )
 
@@ -62,9 +63,17 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Stage3A profile is independent of optimization/DEBUG symbols.
 option(VALVE_LOW_POWER "Enable ordinary Sleep with TIM2 timebase" OFF)
+option(VALVE_STOP1 "Enable GPIO-only Stop1; overrides VALVE_LOW_POWER" OFF)
+if(VALVE_STOP1)
+    set(VALVE_POWER_PROFILE 2)
+elseif(VALVE_LOW_POWER)
+    set(VALVE_POWER_PROFILE 1)
+else()
+    set(VALVE_POWER_PROFILE 0)
+endif()
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    POWER_LOW_POWER_MODE=$<BOOL:${VALVE_LOW_POWER}>
+    POWER_LOW_POWER_MODE=${VALVE_POWER_PROFILE}
     # Add user defined symbols
 )
 

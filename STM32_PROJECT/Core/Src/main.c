@@ -34,6 +34,7 @@
 #include "battery_monitor.h"
 #include "app_status.h"
 #include "power_manager.h"
+#include "power_port.h"
 
 /* USER CODE END Includes */
 
@@ -212,6 +213,9 @@ static void Valve_Service(void)
   ValvePort_Read(&inputs);
   uint32_t now = HAL_GetTick();
   Valve_Step(now, &inputs); /* Safety always runs before ADC work. */
+#if POWER_LOW_POWER_MODE == 2
+  if (PowerPort_TakeStopWake()) Battery_AfterStop(now);
+#endif
   Battery_Service(now);
   AppStatus_Publish(now, &inputs,
       HAL_GPIO_ReadPin(LIMIT3_GPIO_Port, LIMIT3_Pin) == GPIO_PIN_SET,
@@ -228,12 +232,16 @@ static void Power_Idle(void)
   uint32_t now = HAL_GetTick();
   const ValveStatus *valve = Valve_Get();
   uint32_t budget = Battery_SleepBudget(now);
+  uint8_t adc_busy = budget==0;
+#if POWER_LOW_POWER_MODE == 2
+  adc_busy |= !Battery_CanStop(); /* Finish first post-boot/post-wake sample. */
+#endif
   PowerRequest request = {
     .motor_running = ValvePort_Duty()!=0 || ValvePort_DriverAwake() ||
                      valve->state==VALVE_OPENING || valve->state==VALVE_CLOSING,
     .safety_pending = valve->safety_close_pending,
     .valve_busy = !Valve_CanSleep(now), /* Includes input qualification/deferred direction. */
-    .adc_busy = budget==0,
+    .adc_busy = adc_busy,
     .uart_busy = RS485_RxBusy() || command_length!=0 || command_overflow!=0,
     .sleep_ms = budget
   };

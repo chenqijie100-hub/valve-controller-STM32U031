@@ -40,5 +40,13 @@ int run_tests(void)
   { receive((uint8_t)i, 0); CHECK(RS485_RxPoll(&byte) == 1 && byte == (uint8_t)i); }
   tests_passed++;
   mask = 1; CHECK(RS485_RxPoll(&byte) == 0 && mask == 1); tests_passed++;
+  RS485_RxAfterStop();CHECK(!RS485_RxBusy());
+  receive('R',0);receive('U',0);receive('N',0);receive('A',0);
+  CHECK(RS485_RxPoll(&byte)==0 && !RS485_RxBusy());tests_passed++;
+  receive('\n',0);for(unsigned i=0;i<6;++i)receive((uint8_t)ping[i],0);
+  for(unsigned i=0;i<6;++i) { CHECK(RS485_RxPoll(&byte)==1 && byte==(uint8_t)ping[i]); }
+  tests_passed++;
+  RS485_RxAfterStop();receive('X',USART_ISR_FE);CHECK(RS485_RxPoll(&byte)==0);
+  receive('\n',0);receive('P',0);CHECK(RS485_RxPoll(&byte)==1 && byte=='P');tests_passed++;
   return 0;
 }

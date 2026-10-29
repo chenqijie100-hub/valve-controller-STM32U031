@@ -5,7 +5,52 @@ typedef enum { GPIO_PIN_RESET, GPIO_PIN_SET } GPIO_PinState;
 typedef enum { HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT } HAL_StatusTypeDef;
 typedef struct { uint32_t MODER, ODR, IDR, BSRR; } GPIO_TypeDef;
 typedef struct { uint32_t CCR4, BDTR, ARR, CR1, CNT, PSC, EGR, DIER, SR, CCR1, CCMR1, CCER; } TIM_TypeDef;
-typedef struct { uint32_t IOPENR, APBENR2, APBENR1, APBSMENR1, APBRSTR1; } RCC_TypeDef;
+typedef struct { volatile uint32_t IOPENR, APBENR2, APBENR1, APBSMENR1, APBRSTR1, CR, CFGR, CCIPR, BDCR; } RCC_TypeDef;
+typedef struct { volatile uint32_t SSR,TR,DR,PRER,ICSR,CR,WPR; } MockRTC;
+typedef struct { volatile uint32_t CR; } MockADC;
+typedef struct { volatile uint32_t ACR; } MockFLASH;
+extern MockRTC mock_rtc;
+extern MockADC mock_adc;
+extern MockFLASH mock_flash;
+#define RTC (&mock_rtc)
+#define ADC1 (&mock_adc)
+#define FLASH (&mock_flash)
+#define RTC_CR_BYPSHAD (1U<<5)
+#define RTC_CR_FMT (1U<<6)
+#define RTC_ICSR_INIT (1U<<7)
+#define RTC_ICSR_BIN (3U<<8)
+#define RCC_BDCR_LSERDY 2U
+#define RCC_BDCR_RTCEN (1U<<15)
+#define RCC_BDCR_RTCSEL (3U<<8)
+#define RCC_BDCR_RTCSEL_0 (1U<<8)
+#define RCC_APBENR1_RTCAPBEN (1U<<10)
+#define RCC_CR_HSIRDY (1U<<10)
+#define RCC_CFGR_SW 7U
+#define RCC_CFGR_SW_0 1U
+#define RCC_CFGR_SWS (7U<<3)
+#define RCC_CFGR_SWS_0 (1U<<3)
+#define RCC_CFGR_HPRE (15U<<8)
+#define RCC_CFGR_PPRE (7U<<12)
+#define RCC_CFGR_STOPWUCK (1U<<15)
+#define RCC_CCIPR_USART1SEL 3U
+#define RCC_CCIPR_USART1SEL_1 2U
+#define RCC_CCIPR_ADCSEL (3U<<28)
+#define RCC_CCIPR_TIM1SEL (1U<<24)
+#define RCC_CCIPR_ADCSEL_1 (2U<<28)
+#define FLASH_ACR_LATENCY 7U
+#define ADC_CR_ADSTART 4U
+#define ADC_CR_ADDIS 2U
+#define ADC_CR_ADSTP 16U
+#define ADC_CR_ADCAL (1UL<<31)
+#define USART_ISR_TC 64U
+#define USART_CR1_UE 1U
+#define USART_CR1_UESM 2U
+#define USART_RQR_RXFRQ 8U
+#define PWR_STOPENTRY_WFI 1U
+extern uint32_t SystemCoreClock,uwTickPrio;
+void SystemCoreClockUpdate(void);
+HAL_StatusTypeDef HAL_InitTick(uint32_t priority);
+void HAL_PWREx_EnterSTOP1Mode(uint8_t entry);
 typedef struct { uint32_t RPR1,FPR1; } EXTI_TypeDef;
 typedef struct { TIM_TypeDef *Instance; } TIM_HandleTypeDef;
 extern GPIO_TypeDef mock_gpioa, mock_gpiob;
@@ -46,7 +91,7 @@ void HAL_NVIC_ClearPendingIRQ(int irq);
 void HAL_SuspendTick(void);
 void HAL_ResumeTick(void);
 void HAL_PWR_EnterSLEEPMode(uint32_t regulator,uint8_t entry);
-typedef struct { volatile uint32_t ISR, ICR, RDR, CR1, CR3; } MockUSART;
+typedef struct { volatile uint32_t ISR, ICR, RDR, CR1, CR3, RQR; } MockUSART;
 extern MockUSART mock_usart1;
 #define USART1 (&mock_usart1)
 #define USART_ISR_PE 1U

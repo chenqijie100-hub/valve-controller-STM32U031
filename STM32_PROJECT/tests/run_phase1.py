@@ -15,7 +15,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 deps = os.environ.get('PHASE1_TEST_DEPS', str(ROOT.parent / 'tmp/phase1-testdeps'))
 sys.path.insert(0, deps)
-from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS
+from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS, UC_HOOK_MEM_READ
 from unicorn.arm_const import UC_ARM_REG_SP, UC_ARM_REG_LR, UC_ARM_REG_R0, UC_ARM_REG_PC
 
 def compiler():
@@ -59,6 +59,19 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
             if kind == 1 and size:
                 cpu.mem_write(address, data[offset:offset + size])
         sentinel = 0x8FFF0
+        if 'rtc_inject_mode' in symbols:
+            def rtc_read_hook(uc, access, address, size, value, user_data):
+                if address != symbols['mock_rtc']:
+                    return
+                mode = struct.unpack('<I', uc.mem_read(symbols['rtc_inject_mode'], 4))[0]
+                if not mode:
+                    return
+                reads = struct.unpack('<I', uc.mem_read(symbols['rtc_inject_reads'], 4))[0] + 1
+                uc.mem_write(symbols['rtc_inject_reads'], struct.pack('<I', reads))
+                if (mode == 1 and reads == 2) or mode == 2:
+                    old = struct.unpack('<I', uc.mem_read(address, 4))[0]
+                    uc.mem_write(address, struct.pack('<I', 127 if old == 128 else 128))
+            cpu.hook_add(UC_HOOK_MEM_READ, rtc_read_hook)
         cpu.reg_write(UC_ARM_REG_SP, 0x2003FFF0)
         cpu.reg_write(UC_ARM_REG_LR, sentinel | 1)
         cpu.emu_start(symbols['run_tests'] | 1, sentinel, count=20000000)
@@ -75,7 +88,10 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
 if __name__ == '__main__':
     execute('power_manager_low', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=1'])
     execute('power_manager_debug', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'])
+    execute('power_manager_stop', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=2'])
     execute('power_port', ['Core/Src/power_port.c','tests/test_power_port.c'], ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=1'])
+    execute('power_stop', ['Core/Src/power_port.c','tests/test_power_stop.c'], ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=2'])
+    execute('power_rtc', ['Core/Src/power_rtc.c','tests/test_power_rtc.c'], ['tests/mocks','Core/Inc'])
     execute('battery', ['Core/Src/battery_monitor.c', 'tests/test_battery.c'], ['Core/Inc'])
     execute('battery_port', ['Core/Src/battery_adc_port.c', 'tests/test_battery_port.c'], ['tests/mocks','Core/Inc'])
     execute('snapshot', ['Core/Src/app_status.c','tests/test_app_status.c'], ['Core/Inc'])
@@ -87,3 +103,4 @@ if __name__ == '__main__':
                  'Core/Src/valve_port.c','tests/test_valve_app.c','tests/test_runtime.c']
     execute('application_debug', app_sources, ['tests/mocks','Core/Inc'], libs=('-lc','-lgcc'))
     execute('application_low', app_sources, ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=1'], libs=('-lc','-lgcc'))
+    execute('application_stop', app_sources, ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=2'], libs=('-lc','-lgcc'))

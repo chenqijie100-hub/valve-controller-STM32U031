@@ -36,11 +36,13 @@ int run_tests(void)
   CHECK(!Battery_Convert(2000,1,1650,&vdda,&mv));
   CHECK(!Battery_Convert(2000,4000,1650,&vdda,&mv)); tests_passed++;
   reset(0); Battery_Get(now,&out); CHECK(!out.valid && !out.has_value);
+  CHECK(!Battery_CanStop());
   CHECK(Battery_SleepBudget(now)==500);tests_passed++;
   step(499); CHECK(starts==0); step(1); CHECK(starts==1); finish();
   CHECK(Battery_SleepBudget(now)==250);tests_passed++;
   CHECK(out.valid && out.has_value && out.sequence==1 && out.motor_raw==512);
   CHECK(out.updated_ms==now && out.age_ms==0); tests_passed++;
+  CHECK(Battery_CanStop());tests_passed++;
   uint32_t first=out.millivolts, updated=out.updated_ms;
   step(249); CHECK(starts==1); samples[0]=2900; step(1); finish();
   CHECK(out.sequence==2 && out.millivolts>first && out.millivolts<out.unfiltered_mv); tests_passed++;
@@ -72,5 +74,12 @@ int run_tests(void)
   CHECK(out.result==BATTERY_CAL_ERROR && starts==0); tests_passed++;
   reset(0xfffffff0U); step(500); finish();
   CHECK(out.valid && out.age_ms==0); Battery_Get(now+20,&out); CHECK(out.age_ms==20); tests_passed++;
+  reset(0);step(500);finish();updated=out.updated_ms;good=out.millivolts;
+  now+=60000;Battery_AfterStop(now);Battery_Get(now,&out);
+  CHECK(!Battery_CanStop());
+  CHECK(!out.valid && out.has_value && out.millivolts==good && out.updated_ms==updated);
+  CHECK(out.age_ms==60000 && Battery_SleepBudget(now)==0);tests_passed++;
+  samples[0]=2900;step(0);finish();
+  CHECK(out.valid && out.millivolts==out.unfiltered_mv && out.sequence==2);tests_passed++;
   return 0;
 }

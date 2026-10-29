@@ -24,6 +24,9 @@ static char response[1024];
 static const char *rx_data;
 static uint32_t mock_sleeps;
 static uint8_t power_inject_wire;
+static uint8_t mock_stop_woke;
+uint8_t PowerPort_TakeStopWake(void)
+{ uint8_t woke=mock_stop_woke;mock_stop_woke=0;return woke; }
 uint8_t PowerPort_Init(void) { return 1; }
 uint32_t PowerPort_Lock(void) { uint32_t old=mask;mask=1;return old; }
 void PowerPort_Unlock(uint32_t value) { mask=value; }
@@ -36,6 +39,9 @@ uint32_t PowerPort_GpioSignature(void)
 uint8_t PowerPort_Sleep(uint32_t ms)
 {
   mock_sleeps++; tick+=ms;
+#if POWER_LOW_POWER_MODE == 2
+  mock_stop_woke=1;
+#endif
   if(power_inject_wire) { GPIOA->IDR|=LIMIT4_Pin;ValvePort_WireBreakISR();PowerManager_NotifyGPIOFromISR(); }
   return 1;
 }
@@ -98,7 +104,7 @@ static void reset(uint8_t open_request)
   tick = tick_calls = mask = sent = arrive_after = break_after = 0;
   rx_error = tx_error = adc_timeout = 0; huart1.error = 0;
   mock_adc_flags=ADC_FLAG_EOC; adc_starts=0;
-  mock_sleeps=0;power_inject_wire=0;PowerManager_Init();
+  mock_sleeps=0;power_inject_wire=mock_stop_woke=0;PowerManager_Init();
   command_length = command_overflow = 0; rx_data = 0;
   GPIOA->IDR = nFLAUT_Pin; GPIOB->IDR = open_request ? LIMIT5_Pin : 0;
   EXTI->RPR1 = 0; RCC->APBENR2 = RCC_APBENR2_TIM1EN; TIM1->ARR = 799;
@@ -193,6 +199,12 @@ int run_tests(void)
   RS485_ProcessInput();Power_Idle();CHECK(mock_sleeps==asleep);tests_passed++;
 #else
   CHECK(mock_sleeps==0 && (power_last_blockers&POWER_BLOCK_DEBUG));tests_passed++;
+#endif
+#if POWER_LOW_POWER_MODE == 2
+  reset(0);GPIOB->IDR|=_2Y_Pin;advance(50);
+  Battery_Init(tick,1);Power_Idle();
+  CHECK(mock_sleeps==0);tests_passed++;
+  advance(500);Power_Idle();CHECK(mock_sleeps==1);tests_passed++;
 #endif
   return 0;
 }

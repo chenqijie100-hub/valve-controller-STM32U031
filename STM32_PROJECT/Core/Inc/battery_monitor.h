@@ -22,6 +22,10 @@ typedef struct {
 } BatteryStatus;
 void Battery_Init(uint32_t now, uint8_t adc_calibrated);
 void Battery_Service(uint32_t now);
+/* GPIO-only Stop pauses periodic sampling. Preserve last value/timestamp,
+ * invalidate it and start a fresh filter window on the first wake service. */
+void Battery_AfterStop(uint32_t now);
+uint8_t Battery_CanStop(void);
 void Battery_Get(uint32_t now, BatteryStatus *out);
 /* Zero blocks sleep; otherwise milliseconds until next ADC work is due. */
 uint32_t Battery_SleepBudget(uint32_t now);
