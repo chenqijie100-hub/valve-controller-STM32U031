@@ -24,6 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include "valve_port.h"
 #include "rs485_rx.h"
+#include "power_manager.h"
+#include "power_port.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -191,8 +193,19 @@ void USART1_IRQHandler(void)
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t pin)
 {
   if (pin == LIMIT4_Pin) ValvePort_WireBreakISR();
+  if (pin == LIMIT4_Pin || pin == LIMIT5_Pin) PowerManager_NotifyGPIOFromISR();
 }
 
-/* LIMIT3 is unused; LIMIT5 and LIMIT4 release are sampled/debounced in main. */
+void HAL_GPIO_EXTI_Falling_Callback(uint16_t pin)
+{
+  if (pin == LIMIT4_Pin || pin == LIMIT5_Pin) PowerManager_NotifyGPIOFromISR();
+}
+
+void TIM2_IRQHandler(void)
+{
+  PowerPort_AlarmIRQ();
+}
+
+/* LIMIT3 is unused; complete GPIO/state handling stays in main. */
 
 /* USER CODE END 1 */

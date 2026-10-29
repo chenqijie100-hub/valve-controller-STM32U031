@@ -106,6 +106,7 @@ void ValvePort_WireBreakISR(void)
 
 uint32_t ValvePort_Duty(void) { return applied_duty; }
 uint8_t ValvePort_DriverAwake(void) { return awake; }
+uint8_t ValvePort_EventPending(void) { return wire_event; }
 
 void ValvePort_EmergencyOff(void)
 {

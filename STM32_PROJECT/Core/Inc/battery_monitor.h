@@ -23,6 +23,8 @@ typedef struct {
 void Battery_Init(uint32_t now, uint8_t adc_calibrated);
 void Battery_Service(uint32_t now);
 void Battery_Get(uint32_t now, BatteryStatus *out);
+/* Zero blocks sleep; otherwise milliseconds until next ADC work is due. */
+uint32_t Battery_SleepBudget(uint32_t now);
 uint8_t Battery_Convert(uint16_t bat, uint16_t vref, uint16_t cal,
                         uint32_t *vdda_mv, uint32_t *battery_mv);
 const char *Battery_ResultName(BatteryResult result);

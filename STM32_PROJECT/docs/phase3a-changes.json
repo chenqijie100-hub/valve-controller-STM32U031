@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-28",
+  "scope": "3A ordinary Sleep only; Stop1 deferred",
+  "base_commit": "d21c5cd",
+  "baseline_zip_sha256": "97ba76c4174f9490445aade8decc5985d1be16a59850b8c4dca45e0c93bd58b2",
+  "modified": [
+    "STM32_PROJECT/CMakeLists.txt",
+    "STM32_PROJECT/Core/Inc/battery_monitor.h",
+    "STM32_PROJECT/Core/Inc/rs485_rx.h",
+    "STM32_PROJECT/Core/Inc/stm32u0xx_it.h",
+    "STM32_PROJECT/Core/Inc/valve_control.h",
+    "STM32_PROJECT/Core/Inc/valve_port.h",
+    "STM32_PROJECT/Core/Src/battery_monitor.c",
+    "STM32_PROJECT/Core/Src/main.c",
+    "STM32_PROJECT/Core/Src/rs485_rx.c",
+    "STM32_PROJECT/Core/Src/stm32u0xx_it.c",
+    "STM32_PROJECT/Core/Src/valve_control.c",
+    "STM32_PROJECT/Core/Src/valve_port.c",
+    "STM32_PROJECT/STM32CubeIDE/.project",
+    "STM32_PROJECT/tests/mocks/main.h",
+    "STM32_PROJECT/tests/run_phase1.py",
+    "STM32_PROJECT/tests/test_battery.c",
+    "STM32_PROJECT/tests/test_rs485_rx.c",
+    "STM32_PROJECT/tests/test_valve_app.c",
+    "STM32_PROJECT/tests/test_valve_control.c"
+  ],
+  "added": [
+    "STM32_PROJECT/Core/Inc/power_config.h",
+    "STM32_PROJECT/Core/Inc/power_manager.h",
+    "STM32_PROJECT/Core/Inc/power_port.h",
+    "STM32_PROJECT/Core/Src/power_manager.c",
+    "STM32_PROJECT/Core/Src/power_port.c",
+    "STM32_PROJECT/docs/phase3a-changes.json",
+    "STM32_PROJECT/docs/phase3a-plan.md",
+    "STM32_PROJECT/docs/phase3a-report.md",
+    "STM32_PROJECT/tests/test_power_manager.c",
+    "STM32_PROJECT/tests/test_power_port.c"
+  ],
+  "deleted": [],
+  "protected_unchanged": [
+    "Core/Src/adc.c",
+    "Core/Src/tim.c",
+    "Core/Src/usart.c",
+    "Core/Src/gpio.c",
+    "Core/Src/rtc.c",
+    "Core/Src/battery_adc_port.c",
+    "Core/Src/app_status.c",
+    "Core/Inc/valve_config.h",
+    "STM32_PROJECT.ioc"
+  ],
+  "tests": 178,
+  "builds": {
+    "debug": {
+      "flash": 39212,
+      "ram": 2880
+    },
+    "low_power": {
+      "flash": 40920,
+      "ram": 2888
+    }
+  },
+  "sha256": {
+    "STM32_PROJECT/CMakeLists.txt": "be117fc54b802b6dfc41b2383d09dd399b1ed061f61134058c7422b63a506566",
+    "STM32_PROJECT/Core/Inc/battery_monitor.h": "60d57fd8719b04cdf5f6100c8b529403f038f35eca0622455b56ab667b3fecf2",
+    "STM32_PROJECT/Core/Inc/power_config.h": "dfe4884c70c40acdfd92741940d28423416f8c22492fb53d41e7475eb9f737e6",
+    "STM32_PROJECT/Core/Inc/power_manager.h": "564637e178f461fbac674d1cded02806c1c474859abc9362b242314b7b033fc2",
+    "STM32_PROJECT/Core/Inc/power_port.h": "90b765a8abec0dff5baa0bbdd63b17a4cce2bcd8c9b12336d2a58224250510a4",
+    "STM32_PROJECT/Core/Inc/rs485_rx.h": "3352d7499b1d7ee30d68d0737d2ef354ae4bcd68beb54021fb4e99b07b04cc3a",
+    "STM32_PROJECT/Core/Inc/stm32u0xx_it.h": "2f2c508933a038753f394eaa10318ec42dfd3079437a3a88bcec16de1eaa5d9b",
+    "STM32_PROJECT/Core/Inc/valve_control.h": "70e6decff228af9a467316cc87df69f18b72143ce7e2d8002f0f0d6a3153e57c",
+    "STM32_PROJECT/Core/Inc/valve_port.h": "fae677a0f8945a75814c0b07e74450e0154db8481ac4050c7d6457c97a5866ef",
+    "STM32_PROJECT/Core/Src/battery_monitor.c": "9531aea088293c3db315867d61776ca932c78fdd4cbfff56f44f068f8a62ba92",
+    "STM32_PROJECT/Core/Src/main.c": "5bf2beecefd93fdda3243905d755908e8c5471aab714593b536e1131448f121e",
+    "STM32_PROJECT/Core/Src/power_manager.c": "4f950a5734f799cc3ebac4092eb5542ff034297a9825c963b72e05499fc1773e",
+    "STM32_PROJECT/Core/Src/power_port.c": "30466e3f31c5becdc5e13fd4b1a7f4d0a083ef94afd90ab08cc85fdf5b7416e9",
+    "STM32_PROJECT/Core/Src/rs485_rx.c": "eae2cfe50915b9c27f6cc2b37fcc9d2098b5f6e31806ed91a202e435d35062c4",
+    "STM32_PROJECT/Core/Src/stm32u0xx_it.c": "5441f9317e37add29e1c394a00fbc977576ec2b82e187651501cf1e27fec1410",
+    "STM32_PROJECT/Core/Src/valve_control.c": "4e31d65f35cadf67d27a13bb3699a8c86c0bf4f6b40c4ed2b1d5b87860f2d2ec",
+    "STM32_PROJECT/Core/Src/valve_port.c": "906ed2ffdc7514981f99c83af5094bfa7d97e444f2b235dc527dd28bc119c32e",
+    "STM32_PROJECT/STM32CubeIDE/.project": "a7ed151fe58baffa16ef2c9ec3887887f0003b3250ecf999250348e70d262ac6",
+    "STM32_PROJECT/docs/phase3a-plan.md": "9e6e34d1645a574eef066485e36feccd2bab05c8d292f6788673575a23460b5f",
+    "STM32_PROJECT/docs/phase3a-report.md": "5ac67ee3858d3f743a9e094262fa92583ddb9cd5130f92859d2e65705ef72490",
+    "STM32_PROJECT/tests/mocks/main.h": "718e65d262269c7c52544927a01fdd0459984fe46a0055c6fdfcd60651e0e21f",
+    "STM32_PROJECT/tests/run_phase1.py": "3acc3a7d94be8770e3b7ba726be486f2555620c8a488538ed9fdcc0f6b976da7",
+    "STM32_PROJECT/tests/test_battery.c": "1684752601220cf5a160146324f23720f5cfeea4241ede26fb6b290b3ea343c9",
+    "STM32_PROJECT/tests/test_power_manager.c": "68e7350bf06a50bc149a94a773a02942460e3d6cb87906f136c89bd917c305b7",
+    "STM32_PROJECT/tests/test_power_port.c": "999e4610d4b6cee84a8810ba5c6dc3a041dc6ebabb2233bec3713260b6a57aa1",
+    "STM32_PROJECT/tests/test_rs485_rx.c": "407a03501ebcbdcd01fcac89b05a4e72dbcd30478e0cfe07b3f848f145506e0f",
+    "STM32_PROJECT/tests/test_valve_app.c": "6ec6b6e632de4d7cfd5d8d35bc7c8a5f2ba41b8b5e37bca155f4c3607caca12d",
+    "STM32_PROJECT/tests/test_valve_control.c": "efed4ce4a70e526dd88c37869f78c4ab1af51362fa47f514a84ab419a2883f12"
+  }
+}

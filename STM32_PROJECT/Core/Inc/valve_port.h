@@ -13,4 +13,5 @@ void ValvePort_WireBreakISR(void);
 void ValvePort_EmergencyOff(void);
 uint32_t ValvePort_Duty(void);
 uint8_t ValvePort_DriverAwake(void);
+uint8_t ValvePort_EventPending(void);
 #endif

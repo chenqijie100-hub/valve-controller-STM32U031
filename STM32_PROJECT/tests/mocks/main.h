@@ -4,9 +4,9 @@
 typedef enum { GPIO_PIN_RESET, GPIO_PIN_SET } GPIO_PinState;
 typedef enum { HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT } HAL_StatusTypeDef;
 typedef struct { uint32_t MODER, ODR, IDR, BSRR; } GPIO_TypeDef;
-typedef struct { uint32_t CCR4, BDTR, ARR; } TIM_TypeDef;
-typedef struct { uint32_t IOPENR, APBENR2; } RCC_TypeDef;
-typedef struct { uint32_t RPR1; } EXTI_TypeDef;
+typedef struct { uint32_t CCR4, BDTR, ARR, CR1, CNT, PSC, EGR, DIER, SR, CCR1, CCMR1, CCER; } TIM_TypeDef;
+typedef struct { uint32_t IOPENR, APBENR2, APBENR1, APBSMENR1, APBRSTR1; } RCC_TypeDef;
+typedef struct { uint32_t RPR1,FPR1; } EXTI_TypeDef;
 typedef struct { TIM_TypeDef *Instance; } TIM_HandleTypeDef;
 extern GPIO_TypeDef mock_gpioa, mock_gpiob;
 extern TIM_TypeDef mock_tim1;
@@ -17,6 +17,35 @@ extern EXTI_TypeDef mock_exti;
 #define TIM1 (&mock_tim1)
 #define RCC (&mock_rcc)
 #define EXTI (&mock_exti)
+extern TIM_TypeDef mock_tim2;
+#define TIM2 (&mock_tim2)
+typedef struct { uint32_t ISPR[1]; } MockNVIC;
+typedef struct { uint32_t ICSR,SCR; } MockSCB;
+extern MockNVIC mock_nvic;
+extern MockSCB mock_scb;
+#define NVIC (&mock_nvic)
+#define SCB (&mock_scb)
+#define SCB_ICSR_PENDSTCLR_Msk (1UL<<25)
+#define RCC_APBENR1_TIM2EN 1U
+#define RCC_APBSMENR1_TIM2SMEN 1U
+#define RCC_APBRSTR1_TIM2RST 1U
+#define TIM_EGR_UG 1U
+#define TIM_CR1_CEN 1U
+#define TIM_DIER_CC1IE 2U
+#define TIM_SR_CC1IF 2U
+#define TIM2_IRQn 15
+#define PWR_MAINREGULATOR_ON 0U
+#define PWR_SLEEPENTRY_WFI 1U
+#define USART_ISR_BUSY (1UL<<16)
+uint32_t __get_IPSR(void);
+uint32_t HAL_RCC_GetHCLKFreq(void);
+uint32_t HAL_RCC_GetPCLK1Freq(void);
+void HAL_NVIC_SetPriority(int irq,uint32_t priority,uint32_t subpriority);
+void HAL_NVIC_EnableIRQ(int irq);
+void HAL_NVIC_ClearPendingIRQ(int irq);
+void HAL_SuspendTick(void);
+void HAL_ResumeTick(void);
+void HAL_PWR_EnterSLEEPMode(uint32_t regulator,uint8_t entry);
 typedef struct { volatile uint32_t ISR, ICR, RDR, CR1, CR3; } MockUSART;
 extern MockUSART mock_usart1;
 #define USART1 (&mock_usart1)

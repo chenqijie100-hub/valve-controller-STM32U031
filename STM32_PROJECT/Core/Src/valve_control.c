@@ -13,6 +13,7 @@ static uint32_t din_tick, wire_low_tick, rearm_low_tick;
 static uint8_t din_candidate, din_stable, din_valid;
 static uint8_t wire_active, wire_low_timing, rearm_required, rearm_low_timing;
 static uint8_t manual_active, driver_seen;
+static uint8_t sleep_wire_level,sleep_request_level;
 
 static void stop_drive(uint32_t now)
 {
@@ -81,13 +82,32 @@ void Valve_Init(uint32_t now)
   manual_active = driver_seen = 0;
   din_tick = wire_low_tick = rearm_low_tick = now;
   jog_duration = 0; run_duty = 100;
+  sleep_wire_level=sleep_request_level=0;
   stop_drive(now);
 }
 
 const ValveStatus *Valve_Get(void) { return &status; }
+uint8_t Valve_CanSleep(uint32_t now)
+{
+  /* Observation only: never changes motion, deadlines or recovery interlocks. */
+  if(stage!=VALVE_DRIVE_OFF || status.safety_close_pending || manual_active)return 0;
+  if(!din_valid || din_candidate!=din_stable ||
+     (uint32_t)(now-din_tick)<VALVE_INPUT_STABLE_MS)return 0;
+  if(wire_active && !sleep_wire_level)return 0;
+  if(rearm_required && !wire_active && !sleep_request_level)return 0;
+  if(status.latched_faults)return 1;
+  if(status.digital_enabled)
+  {
+    ValveDirection desired=din_stable?VALVE_DIR_OPEN:VALVE_DIR_CLOSE;
+    if(desired==VALVE_DIR_OPEN && !status.opening_permitted)return 1;
+    if(reached!=desired)return 0; /* Includes deferred reversal/cooldown. */
+  }
+  return 1;
+}
 
 void Valve_Step(uint32_t now, const ValveInputs *in)
 {
+  sleep_wire_level=in->wire_break; sleep_request_level=in->request_open;
   ValveDirection desired = VALVE_DIR_NONE;
   /* Assertion is immediate; release is qualified. Never discard a pulse. */
   if (in->break_event || (in->wire_break && !wire_active)) assert_break();

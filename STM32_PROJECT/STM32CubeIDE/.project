@@ -216,6 +216,16 @@
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/app_status.c</locationURI>
 		</link>
+		<link>
+			<name>Application/User/Core/power_manager.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/power_manager.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/power_port.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/power_port.c</locationURI>
+		</link>
 	</linkedResources>
 
 </projectDescription>

@@ -73,11 +73,17 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
         print(f'PASS {name}: {cases} scenarios')
 
 if __name__ == '__main__':
+    execute('power_manager_low', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=1'])
+    execute('power_manager_debug', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'])
+    execute('power_port', ['Core/Src/power_port.c','tests/test_power_port.c'], ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=1'])
     execute('battery', ['Core/Src/battery_monitor.c', 'tests/test_battery.c'], ['Core/Inc'])
     execute('battery_port', ['Core/Src/battery_adc_port.c', 'tests/test_battery_port.c'], ['tests/mocks','Core/Inc'])
     execute('snapshot', ['Core/Src/app_status.c','tests/test_app_status.c'], ['Core/Inc'])
     execute('rs485_rx', ['Core/Src/rs485_rx.c', 'tests/test_rs485_rx.c'], ['tests/mocks', 'Core/Inc'])
     execute('controller', ['Core/Src/valve_control.c', 'tests/test_valve_control.c'], ['Core/Inc'])
     execute('port', ['Core/Src/valve_port.c', 'tests/test_valve_port.c'], ['tests/mocks', 'Core/Inc'])
-    execute('application', ['Core/Src/battery_monitor.c', 'Core/Src/battery_adc_port.c', 'Core/Src/app_status.c', 'Core/Src/rs485_rx.c', 'Core/Src/valve_control.c', 'Core/Src/valve_port.c', 'tests/test_valve_app.c', 'tests/test_runtime.c'],
-            ['tests/mocks', 'Core/Inc'], libs=('-lc', '-lgcc'))
+    app_sources=['Core/Src/power_manager.c','Core/Src/battery_monitor.c','Core/Src/battery_adc_port.c',
+                 'Core/Src/app_status.c','Core/Src/rs485_rx.c','Core/Src/valve_control.c',
+                 'Core/Src/valve_port.c','tests/test_valve_app.c','tests/test_runtime.c']
+    execute('application_debug', app_sources, ['tests/mocks','Core/Inc'], libs=('-lc','-lgcc'))
+    execute('application_low', app_sources, ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=1'], libs=('-lc','-lgcc'))

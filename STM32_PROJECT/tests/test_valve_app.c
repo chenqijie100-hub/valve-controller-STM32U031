@@ -4,6 +4,7 @@
 #undef main
 #include "battery_monitor.h"
 #include "app_status.h"
+#include "power_port.h"
 #define CHECK(x) do { if (!(x)) return __LINE__; } while (0)
 unsigned tests_passed;
 GPIO_TypeDef mock_gpioa, mock_gpiob;
@@ -21,6 +22,23 @@ static uint32_t tick, tick_calls, mask, sent, arrive_after, break_after;
 static uint8_t rx_error, tx_error, adc_timeout;
 static char response[1024];
 static const char *rx_data;
+static uint32_t mock_sleeps;
+static uint8_t power_inject_wire;
+uint8_t PowerPort_Init(void) { return 1; }
+uint32_t PowerPort_Lock(void) { uint32_t old=mask;mask=1;return old; }
+void PowerPort_Unlock(uint32_t value) { mask=value; }
+uint8_t PowerPort_InInterrupt(void) { return 0; }
+uint8_t PowerPort_Pending(void) { return RS485_RxBusy() || ValvePort_EventPending(); }
+uint8_t PowerPort_OutputsSafe(void) { return !ValvePort_Duty() && !ValvePort_DriverAwake(); }
+uint32_t PowerPort_GpioSignature(void)
+{ return (GPIOA->IDR&LIMIT4_Pin?1U:0U)|(GPIOB->IDR&LIMIT5_Pin?2U:0U)|
+         (GPIOA->IDR&_1Y_Pin?4U:0U)|(GPIOB->IDR&_2Y_Pin?8U:0U); }
+uint8_t PowerPort_Sleep(uint32_t ms)
+{
+  mock_sleeps++; tick+=ms;
+  if(power_inject_wire) { GPIOA->IDR|=LIMIT4_Pin;ValvePort_WireBreakISR();PowerManager_NotifyGPIOFromISR(); }
+  return 1;
+}
 
 uint32_t __get_PRIMASK(void) { return mask; }
 void __disable_irq(void) { mask = 1; }
@@ -80,6 +98,7 @@ static void reset(uint8_t open_request)
   tick = tick_calls = mask = sent = arrive_after = break_after = 0;
   rx_error = tx_error = adc_timeout = 0; huart1.error = 0;
   mock_adc_flags=ADC_FLAG_EOC; adc_starts=0;
+  mock_sleeps=0;power_inject_wire=0;PowerManager_Init();
   command_length = command_overflow = 0; rx_data = 0;
   GPIOA->IDR = nFLAUT_Pin; GPIOB->IDR = open_request ? LIMIT5_Pin : 0;
   EXTI->RPR1 = 0; RCC->APBENR2 = RCC_APBENR2_TIM1EN; TIM1->ARR = 799;
@@ -154,5 +173,26 @@ int run_tests(void)
   CHECK(ValvePort_Duty()==100); tests_passed++;
   GPIOB->IDR |= _2Y_Pin; advance(1); command("STATUS\n");
   CHECK(strstr(response,"STATE=CLOSED") && ValvePort_Duty()==0); tests_passed++;
+
+  /* Idle hook refuses all running phases in both profiles. */
+  reset(1);Power_Idle();CHECK(mock_sleeps==0);tests_passed++;
+  GPIOA->IDR|=_1Y_Pin;advance(1);Power_Idle();
+#if POWER_LOW_POWER_MODE
+  CHECK(mock_sleeps==1);tests_passed++;
+  advance(0); /* Timer wake services the now-due ADC sequence before next idle. */
+  /* Wake during idle-open: reread wire high, close request cannot sleep. */
+  power_inject_wire=1;Power_Idle();power_inject_wire=0;advance(0);
+  CHECK(Valve_Get()->safety_close_pending && !Valve_Get()->opening_permitted);
+  uint32_t asleep=mock_sleeps;Power_Idle();CHECK(mock_sleeps==asleep);
+  advance(2000);advance(20);advance(2);Power_Idle();
+  CHECK(Valve_Get()->state==VALVE_CLOSING && ValvePort_Duty()==100 && mock_sleeps==asleep);tests_passed++;
+  GPIOB->IDR|=_2Y_Pin;GPIOA->IDR&=~_1Y_Pin;advance(1);
+  /* A queued/partial serial command keeps main active without losing it. */
+  USART1->ISR=USART_ISR_RXNE_RXFNE;USART1->RDR='P';RS485_RxIRQ();
+  asleep=mock_sleeps;Power_Idle();CHECK(mock_sleeps==asleep);
+  RS485_ProcessInput();Power_Idle();CHECK(mock_sleeps==asleep);tests_passed++;
+#else
+  CHECK(mock_sleeps==0 && (power_last_blockers&POWER_BLOCK_DEBUG));tests_passed++;
+#endif
   return 0;
 }

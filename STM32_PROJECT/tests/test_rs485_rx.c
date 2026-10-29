@@ -16,8 +16,10 @@ int run_tests(void)
   CHECK(USART1->CR1 & USART_CR1_RXNEIE_RXFNEIE);
   const char *ping = "PING\r\n";
   for (unsigned i = 0; i < 6; ++i) receive((uint8_t)ping[i], 0);
+  CHECK(RS485_RxBusy());tests_passed++;
   for (unsigned i = 0; i < 6; ++i) { CHECK(RS485_RxPoll(&byte) == 1); CHECK(byte == (uint8_t)ping[i]); }
   CHECK(RS485_RxPoll(&byte) == 0); tests_passed++;
+  CHECK(!RS485_RxBusy());tests_passed++;
   /* Full burst accumulated while main is busy; no per-byte main scheduling. */
   for (unsigned i = 0; i < 100; ++i) receive((uint8_t)i, 0);
   for (unsigned i = 0; i < 100; ++i) { CHECK(RS485_RxPoll(&byte) == 1); CHECK(byte == i); }

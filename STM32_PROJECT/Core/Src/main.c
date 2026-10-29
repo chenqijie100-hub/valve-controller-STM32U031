@@ -33,6 +33,7 @@
 #include "rs485_rx.h"
 #include "battery_monitor.h"
 #include "app_status.h"
+#include "power_manager.h"
 
 /* USER CODE END Includes */
 
@@ -81,6 +82,7 @@ static void RS485_Reply(const char *text);
 static void RS485_ProcessInput(void);
 static void SendStatus(void);
 static void Valve_Service(void);
+static void Power_Idle(void);
 static void Service_Wait(uint32_t duration_ms);
 
 /* USER CODE END PFP */
@@ -136,6 +138,7 @@ int main(void)
   RS485_RxInit();
   Battery_Init(HAL_GetTick(), adc_cal_status == HAL_OK);
   AppStatus_Init();
+  PowerManager_Init();
   valve_initialized = 1;
   Valve_Service(); /* Sample safety first; digital control defaults on. */
 
@@ -150,6 +153,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     Valve_Service();
     RS485_ProcessInput();
+    Power_Idle(); /* Wake returns to fresh safety sampling at loop start. */
   }
   /* USER CODE END 3 */
 }
@@ -204,6 +208,7 @@ static void Valve_Service(void)
 {
   ValveInputs inputs;
   if (!valve_initialized) return;
+  uint32_t observed_generation = PowerManager_EventGeneration();
   ValvePort_Read(&inputs);
   uint32_t now = HAL_GetTick();
   Valve_Step(now, &inputs); /* Safety always runs before ADC work. */
@@ -214,6 +219,25 @@ static void Valve_Service(void)
       HAL_GPIO_ReadPin(nSLEEP_GPIO_Port, nSLEEP_Pin) == GPIO_PIN_SET,
       HAL_GPIO_ReadPin(VREF_GPIO_Port, VREF_Pin) == GPIO_PIN_SET,
       ValvePort_Duty());
+  PowerManager_MarkServiced(observed_generation, PowerManager_Signature(&inputs));
+}
+
+static void Power_Idle(void)
+{
+  if (!valve_initialized) return;
+  uint32_t now = HAL_GetTick();
+  const ValveStatus *valve = Valve_Get();
+  uint32_t budget = Battery_SleepBudget(now);
+  PowerRequest request = {
+    .motor_running = ValvePort_Duty()!=0 || ValvePort_DriverAwake() ||
+                     valve->state==VALVE_OPENING || valve->state==VALVE_CLOSING,
+    .safety_pending = valve->safety_close_pending,
+    .valve_busy = !Valve_CanSleep(now), /* Includes input qualification/deferred direction. */
+    .adc_busy = budget==0,
+    .uart_busy = RS485_RxBusy() || command_length!=0 || command_overflow!=0,
+    .sleep_ms = budget
+  };
+  (void)PowerManager_TrySleep(&request);
 }
 
 static void Service_Wait(uint32_t duration_ms)

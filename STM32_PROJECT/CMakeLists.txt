@@ -50,6 +50,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/battery_monitor.c
     Core/Src/battery_adc_port.c
     Core/Src/app_status.c
+    Core/Src/power_manager.c
+    Core/Src/power_port.c
     # Add user sources here
 )
 
@@ -58,8 +60,11 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
 )
 
+# Stage3A profile is independent of optimization/DEBUG symbols.
+option(VALVE_LOW_POWER "Enable ordinary Sleep with TIM2 timebase" OFF)
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    POWER_LOW_POWER_MODE=$<BOOL:${VALVE_LOW_POWER}>
     # Add user defined symbols
 )
 

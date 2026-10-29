@@ -6,6 +6,7 @@ volatile uint32_t rs485_rx_irq_bytes, rs485_rx_hw_errors, rs485_rx_overflows;
 static volatile uint8_t bytes[RX_SIZE];
 static volatile uint32_t head, tail;
 static volatile uint8_t damaged;
+uint8_t RS485_RxBusy(void) { return damaged || head!=tail; }
 
 void RS485_RxInit(void)
 {

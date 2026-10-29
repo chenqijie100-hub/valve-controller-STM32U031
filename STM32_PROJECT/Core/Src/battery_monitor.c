@@ -7,6 +7,13 @@ static uint16_t calibration, raw[3];
 static uint8_t rank, count, position;
 static uint32_t window[4], sum;
 static BatteryResult attempt_result;
+uint32_t Battery_SleepBudget(uint32_t now)
+{
+  if(stage==UNAVAILABLE)return BATTERY_SAMPLE_PERIOD_MS;
+  if(stage!=IDLE)return 0;
+  uint32_t elapsed=now-wait_tick;
+  return elapsed>=wait_ms?0:wait_ms-elapsed;
+}
 
 uint8_t Battery_Convert(uint16_t bat, uint16_t vref, uint16_t cal, uint32_t *vdda, uint32_t *mv)
 {

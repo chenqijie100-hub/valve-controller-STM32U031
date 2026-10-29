@@ -27,6 +27,19 @@ static void start(void) { step(50); step(1950); step(20); step(2); }
 
 int run_tests(void)
 {
+  reset();CHECK(!Valve_CanSleep(now));
+  input.close_limit=1;step(50);CHECK(Valve_CanSleep(now));tests_passed++;
+  input.request_open=1;step(1);CHECK(!Valve_CanSleep(now));
+  step(50);CHECK(!Valve_CanSleep(now)); /* pending direction during cooldown */
+  step(1900);step(20);step(2);CHECK(!Valve_CanSleep(now));tests_passed++;
+  reset();input.wire_break=1;input.close_limit=1;step(50);
+  CHECK(Valve_CanSleep(now));
+  input.wire_break=0;step(1);CHECK(!Valve_CanSleep(now));
+  step(100);CHECK(!Valve_CanSleep(now));
+  step(50);CHECK(Valve_CanSleep(now));tests_passed++;
+  reset();CHECK(Valve_Request(VALVE_DIR_OPEN,0,100));CHECK(!Valve_CanSleep(now));tests_passed++;
+  input.wire_break=1;input.open_limit=input.close_limit=1;step(1);
+  CHECK(Valve_Get()->safety_close_pending && !Valve_CanSleep(now));tests_passed++;
   /* Default digital control, fresh startup settling/cooldown, proven direction. */
   reset(); CHECK(output == VALVE_DRIVE_OFF);
   input.request_open = 1; step(1); step(49); CHECK(output == VALVE_DRIVE_OFF);

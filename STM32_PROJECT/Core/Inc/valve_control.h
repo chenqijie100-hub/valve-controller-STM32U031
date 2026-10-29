@@ -27,6 +27,7 @@ typedef struct {
 void Valve_Init(uint32_t now);
 void Valve_Step(uint32_t now, const ValveInputs *inputs);
 const ValveStatus *Valve_Get(void);
+uint8_t Valve_CanSleep(uint32_t now);
 uint8_t Valve_Request(ValveDirection direction, uint32_t jog_ms, uint32_t duty);
 uint8_t Valve_Stop(uint32_t now);
 uint8_t Valve_SetDigital(uint8_t enabled, uint32_t now);
