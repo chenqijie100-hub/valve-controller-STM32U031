@@ -7,13 +7,21 @@ typedef struct { uint32_t MODER, ODR, IDR, BSRR; } GPIO_TypeDef;
 typedef struct { uint32_t CCR4, BDTR, ARR, CR1, CNT, PSC, EGR, DIER, SR, CCR1, CCMR1, CCER; } TIM_TypeDef;
 typedef struct { volatile uint32_t IOPENR, APBENR2, APBENR1, APBSMENR1, APBRSTR1, CR, CFGR, CCIPR, BDCR; } RCC_TypeDef;
 typedef struct { volatile uint32_t SSR,TR,DR,PRER,ICSR,CR,WPR; } MockRTC;
-typedef struct { volatile uint32_t CR; } MockADC;
+typedef struct { volatile uint32_t CR,CALFACT; } MockADC;
+typedef struct { volatile uint32_t CCR; } MockADCCommon;
 typedef struct { volatile uint32_t ACR; } MockFLASH;
 extern MockRTC mock_rtc;
 extern MockADC mock_adc;
+extern MockADCCommon mock_adc_common;
 extern MockFLASH mock_flash;
 #define RTC (&mock_rtc)
 #define ADC1 (&mock_adc)
+#define ADC1_COMMON (&mock_adc_common)
+#define ADC_CR_ADEN 1U
+#define ADC_CR_ADVREGEN (1UL<<28)
+#define ADC_CCR_VREFEN (1UL<<22)
+#define ADC_CCR_TSEN (1UL<<23)
+#define ADC_CCR_VBATEN (1UL<<24)
 #define FLASH (&mock_flash)
 #define RTC_CR_BYPSHAD (1U<<5)
 #define RTC_CR_FMT (1U<<6)

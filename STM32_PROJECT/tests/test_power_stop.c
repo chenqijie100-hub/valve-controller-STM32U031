@@ -2,6 +2,7 @@
 #include "power_port.h"
 #include "power_rtc.h"
 #include "rs485_rx.h"
+#include "battery_adc_port.h"
 #define CHECK(x) do { if(!(x))return __LINE__; } while(0)
 unsigned tests_passed;
 GPIO_TypeDef mock_gpioa,mock_gpiob;
@@ -20,6 +21,11 @@ static uint32_t mask,stops,resumed,suspended,errors,resync;
 static uint64_t rtc_stamp,stop_ticks;
 static uint32_t preparation_ticks,restoration_ticks;
 static uint8_t rtc_ok,rtc_backwards,bad_clock,bad_tick,inject,busy,wire_wfi;
+static uint8_t analog_down,analog_refuse;
+static uint32_t analog_resumes;
+uint8_t BatteryAdc_SuspendForStop(void)
+{ if(analog_refuse || (ADC1->CR&ADC_CR_ADEN))return 0;analog_down=1;return 1; }
+void BatteryAdc_ResumeFromStop(void) { analog_down=0;analog_resumes++; }
 void *memset(void *p,int v,unsigned n) { unsigned char *s=p;while(n--)*s++=(unsigned char)v;return p; }
 uint32_t __get_PRIMASK(void) { return mask; }
 void __disable_irq(void) { mask=1; }
@@ -46,7 +52,7 @@ void SystemCoreClockUpdate(void) { SystemCoreClock=16000000; }
 void Error_Handler(void) { errors++; }
 void HAL_PWREx_EnterSTOP1Mode(uint8_t entry)
 {
- if(entry==PWR_STOPENTRY_WFI && mask && !(TIM2->CR1&TIM_CR1_CEN) && !(USART1->CR1&USART_CR1_UE))stops++;
+ if(entry==PWR_STOPENTRY_WFI && mask && analog_down && !(TIM2->CR1&TIM_CR1_CEN) && !(USART1->CR1&USART_CR1_UE))stops++;
  if(wire_wfi) { EXTI->RPR1|=LIMIT4_Pin;GPIOA->IDR|=LIMIT4_Pin; }
  rtc_stamp=rtc_backwards?rtc_stamp-1:rtc_stamp+stop_ticks+restoration_ticks;
  if(bad_clock)RCC->CR=0;
@@ -59,6 +65,7 @@ static void reset(void)
  mask=stops=resumed=suspended=errors=resync=0;rtc_ok=1;rtc_backwards=bad_clock=bad_tick=inject=busy=wire_wfi=0;
  rtc_stamp=100000;stop_ticks=2560;SystemCoreClock=16000000;uwTick=100;
  preparation_ticks=restoration_ticks=0;
+ analog_down=analog_refuse=0;analog_resumes=0;
  RCC->CR=RCC_CR_HSIRDY;RCC->CFGR=RCC_CFGR_SW_0|RCC_CFGR_SWS_0;
  RCC->CCIPR=RCC_CCIPR_USART1SEL_1;FLASH->ACR=FLASH_LATENCY_1;
  USART1->CR1=USART_CR1_UE|USART_CR1_RXNEIE_RXFNEIE;USART1->ISR=USART_ISR_TC;
@@ -68,6 +75,7 @@ int run_tests(void)
  reset();CHECK(PowerPort_Init());TIM2->CNT=500;mask=1;uint32_t before=HAL_GetTick();
  CHECK(PowerPort_Sleep(250) && stops==1 && errors==0);
  CHECK(HAL_GetTick()-before==10000 && resumed==suspended && mask==1);tests_passed++;
+ CHECK(!analog_down && analog_resumes==1);tests_passed++;
  TIM2->CNT+=37;CHECK(HAL_GetTick()-before==10037);
  CHECK(PowerPort_TakeStopWake() && !PowerPort_TakeStopWake());tests_passed++;
  CHECK((TIM2->CR1&TIM_CR1_CEN) && !TIM2->DIER && (USART1->CR1&USART_CR1_UE) && resync==1);tests_passed++;
@@ -76,6 +84,7 @@ int run_tests(void)
  CHECK(HAL_GetTick()-before==125);tests_passed++;
  reset();CHECK(PowerPort_Init());mask=1;inject=1;CHECK(!PowerPort_Sleep(250) && stops==0);
  CHECK(EXTI->RPR1&LIMIT4_Pin);CHECK(TIM2->CR1&TIM_CR1_CEN);tests_passed++;
+ CHECK(!analog_down && analog_resumes==1);tests_passed++;
  reset();CHECK(PowerPort_Init());mask=1;wire_wfi=1;CHECK(PowerPort_Sleep(250));
  CHECK(EXTI->RPR1&LIMIT4_Pin);CHECK(PowerPort_GpioSignature()&1U);tests_passed++;
  reset();CHECK(PowerPort_Init());mask=1;busy=1;CHECK(!PowerPort_Sleep(250) && !stops);tests_passed++;
@@ -100,5 +109,12 @@ int run_tests(void)
  CHECK(HAL_GetTick()-before==10007);TIM2->CNT+=37;
  stop_ticks=0;preparation_ticks=1;CHECK(PowerPort_Sleep(250));
  CHECK(HAL_GetTick()-before==10052);tests_passed++;
+ reset();CHECK(PowerPort_Init());mask=1;rtc_ok=0;
+ CHECK(!PowerPort_Sleep(250) && !stops && !analog_down && analog_resumes==1);
+ CHECK(TIM2->CR1&TIM_CR1_CEN);tests_passed++;
+ reset();CHECK(PowerPort_Init());mask=1;analog_refuse=1;
+ CHECK(!PowerPort_Sleep(250) && !stops && !analog_down && !analog_resumes && !suspended);tests_passed++;
+ reset();CHECK(PowerPort_Init());mask=1;ADC1->CR=ADC_CR_ADEN;
+ CHECK(!PowerPort_Sleep(250) && !stops && !analog_down);tests_passed++;
  return 0;
 }

@@ -4,19 +4,20 @@
 unsigned tests_passed;
 void *memset(void *p,int v,unsigned n) { unsigned char *s=p; while(n--) *s++=(unsigned char)v; return p; }
 static uint16_t cal, samples[3];
-static uint8_t start_ok, stop_ok;
+static uint8_t start_ok, stop_ok, analog_ready;
 static unsigned index, starts;
 static BatteryAdcResult read_result;
 static uint32_t now;
 static BatteryStatus out;
 uint16_t BatteryAdc_Calibration(void) { return cal; }
+uint8_t BatteryAdc_Ready(uint32_t tick) { (void)tick;return analog_ready; }
 uint8_t BatteryAdc_Start(void) { index=0; starts++; return start_ok; }
 BatteryAdcResult BatteryAdc_Read(uint16_t *v) { *v=samples[index < 3 ? index++ : 2]; return read_result; }
 uint8_t BatteryAdc_Stop(void) { return stop_ok; }
 static void reset(uint32_t tick)
 {
   cal=1650; samples[0]=2787; samples[1]=512; samples[2]=1500;
-  start_ok=stop_ok=1; read_result=BATTERY_ADC_READY; starts=0; now=tick;
+  start_ok=stop_ok=analog_ready=1; read_result=BATTERY_ADC_READY; starts=0; now=tick;
   Battery_Init(now,1);
 }
 static void step(uint32_t ms) { now+=ms; Battery_Service(now); Battery_Get(now,&out); }
@@ -81,5 +82,8 @@ int run_tests(void)
   CHECK(out.age_ms==60000 && Battery_SleepBudget(now)==0);tests_passed++;
   samples[0]=2900;step(0);finish();
   CHECK(out.valid && out.millivolts==out.unfiltered_mv && out.sequence==2);tests_passed++;
+  reset(0);analog_ready=0;step(500);step(100);
+  CHECK(starts==0 && out.failures==0 && out.result==BATTERY_NOT_READY);tests_passed++;
+  analog_ready=1;step(0);finish();CHECK(out.valid && out.failures==0 && starts==1);tests_passed++;
   return 0;
 }

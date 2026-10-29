@@ -59,6 +59,7 @@ void Battery_Service(uint32_t now)
   if (stage==IDLE)
   {
     if ((uint32_t)(now-wait_tick)<wait_ms) return;
+    if (!BatteryAdc_Ready(now)) return; /* Analog startup is not a failed sample. */
     status.attempt_ms=now; start_tick=now; rank=0;
     attempt_result=BATTERY_OK;
     if (BatteryAdc_Start()) stage=READING;

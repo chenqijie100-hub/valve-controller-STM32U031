@@ -5,6 +5,7 @@
 #include "battery_monitor.h"
 #include "app_status.h"
 #include "power_port.h"
+#include "battery_adc_port.h"
 #define CHECK(x) do { if (!(x)) return __LINE__; } while (0)
 unsigned tests_passed;
 GPIO_TypeDef mock_gpioa, mock_gpiob;
@@ -15,6 +16,8 @@ TIM_HandleTypeDef htim1 = { &mock_tim1 };
 ADC_HandleTypeDef hadc1;
 UART_HandleTypeDef huart1;
 MockUSART mock_usart1;
+MockADC mock_adc;
+MockADCCommon mock_adc_common;
 uint32_t mock_adc_flags;
 uint16_t mock_vref_cal=1650;
 static unsigned adc_rank,adc_starts;
@@ -38,8 +41,12 @@ uint32_t PowerPort_GpioSignature(void)
          (GPIOA->IDR&_1Y_Pin?4U:0U)|(GPIOB->IDR&_2Y_Pin?8U:0U); }
 uint8_t PowerPort_Sleep(uint32_t ms)
 {
+#if POWER_LOW_POWER_MODE == 2
+  if(!BatteryAdc_SuspendForStop())return 0;
+#endif
   mock_sleeps++; tick+=ms;
 #if POWER_LOW_POWER_MODE == 2
+  BatteryAdc_ResumeFromStop();
   mock_stop_woke=1;
 #endif
   if(power_inject_wire) { GPIOA->IDR|=LIMIT4_Pin;ValvePort_WireBreakISR();PowerManager_NotifyGPIOFromISR(); }
@@ -104,6 +111,7 @@ static void reset(uint8_t open_request)
   tick = tick_calls = mask = sent = arrive_after = break_after = 0;
   rx_error = tx_error = adc_timeout = 0; huart1.error = 0;
   mock_adc_flags=ADC_FLAG_EOC; adc_starts=0;
+  mock_adc=(MockADC){.CR=ADC_CR_ADVREGEN};mock_adc_common=(MockADCCommon){.CCR=ADC_CCR_VREFEN};
   mock_sleeps=0;power_inject_wire=mock_stop_woke=0;PowerManager_Init();
   command_length = command_overflow = 0; rx_data = 0;
   GPIOA->IDR = nFLAUT_Pin; GPIOB->IDR = open_request ? LIMIT5_Pin : 0;
@@ -185,7 +193,7 @@ int run_tests(void)
   GPIOA->IDR|=_1Y_Pin;advance(1);Power_Idle();
 #if POWER_LOW_POWER_MODE
   CHECK(mock_sleeps==1);tests_passed++;
-  advance(0); /* Timer wake services the now-due ADC sequence before next idle. */
+  advance(2); /* Allow nonblocking analog stabilization after Stop wake. */
   /* Wake during idle-open: reread wire high, close request cannot sleep. */
   power_inject_wire=1;Power_Idle();power_inject_wire=0;advance(0);
   CHECK(Valve_Get()->safety_close_pending && !Valve_Get()->opening_permitted);
@@ -205,6 +213,15 @@ int run_tests(void)
   Battery_Init(tick,1);Power_Idle();
   CHECK(mock_sleeps==0);tests_passed++;
   advance(500);Power_Idle();CHECK(mock_sleeps==1);tests_passed++;
+  /* A wire fault during post-Stop analog settling outranks ADC work. */
+  reset(1);GPIOA->IDR|=_1Y_Pin;advance(1);Power_Idle();
+  CHECK(!BatteryAdc_Ready(tick));unsigned starts_before_settle=adc_starts;
+  GPIOA->IDR|=LIMIT4_Pin;ValvePort_WireBreakISR();Valve_Service();
+  CHECK(Valve_Get()->safety_close_pending && !Valve_Get()->opening_permitted);
+  CHECK(adc_starts==starts_before_settle);tests_passed++;
+  advance(2);CHECK(adc_starts==starts_before_settle+1);
+  AppStatus after_settle;AppStatus_Get(tick,&after_settle);
+  CHECK(Valve_Get()->safety_close_pending && after_settle.battery.valid);tests_passed++;
 #endif
   return 0;
 }

@@ -5,6 +5,7 @@
 #include "rs485_rx.h"
 #if POWER_LOW_POWER_MODE == 2
 #include "power_rtc.h"
+#include "battery_adc_port.h"
 #endif
 volatile uint32_t power_stop_entries,power_stop_last_ms,power_stop_wake_exti;
 volatile uint32_t power_stop_faults,power_stop_clock_ok;
@@ -105,11 +106,15 @@ static uint8_t stop1(void)
   if((ADC1->CR&(ADC_CR_ADSTART|ADC_CR_ADSTP|ADC_CR_ADDIS|ADC_CR_ADCAL)) ||
      !(USART1->ISR&USART_ISR_TC) || PowerPort_Pending() ||
      EXTI->RPR1 || EXTI->FPR1 || !PowerPort_OutputsSafe())return 0;
+  if(!BatteryAdc_SuspendForStop())return 0;
   /* Stop the active timer BEFORE the RTC interval. No HAL wait/delay may run
    * until that interval has been accounted for and TIM2 restarted below. */
   TIM2->DIER=0;TIM2->CR1&=~TIM_CR1_CEN;
   if(!PowerRtc_Now(&before))
-  { TIM2->CR1|=TIM_CR1_CEN;power_stop_faults|=2U;return 0; }
+  {
+    TIM2->CR1|=TIM_CR1_CEN;power_stop_faults|=2U;
+    BatteryAdc_ResumeFromStop();return 0;
+  }
   USART1->CR1=uart_cr1&~(USART_CR1_UE|USART_CR1_UESM);
   HAL_SuspendTick();SCB->ICSR=SCB_ICSR_PENDSTCLR_Msk;
   __DSB();__ISB();
@@ -149,6 +154,7 @@ static uint8_t stop1(void)
   USART1->RQR=USART_RQR_RXFRQ;
   USART1->ICR=USART_ISR_ORE|USART_ISR_FE|USART_ISR_NE|USART_ISR_PE;
   USART1->CR1=uart_cr1; /* Same BRR/HSI clock; do not touch GPIO or DE. */
+  BatteryAdc_ResumeFromStop(); /* No waiting; main keeps servicing safety first. */
   HAL_ResumeTick();
   return entered;
 }

@@ -29,6 +29,9 @@ def compiler():
     return found
 
 def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
+    # Unit-test profiles must not silently follow a user's board-mode header.
+    if not any(d.startswith('POWER_LOW_POWER_MODE=') for d in defines):
+        defines = (*defines, 'POWER_LOW_POWER_MODE=0')
     cc = compiler()
     nm = os.environ.get('ARM_NM') or str(Path(cc).with_name('arm-none-eabi-nm.exe' if os.name == 'nt' else 'arm-none-eabi-nm'))
     with tempfile.TemporaryDirectory(prefix='valve_phase1_') as temp:
