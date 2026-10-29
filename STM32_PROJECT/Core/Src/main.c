@@ -35,6 +35,7 @@
 #include "app_status.h"
 #include "power_manager.h"
 #include "power_port.h"
+#include "limit_power.h"
 
 /* USER CODE END Includes */
 
@@ -127,10 +128,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  /* All peripherals exist before control becomes armed. LIMIT_EN stays low. */
+  /* Detection starts enabled; automatic management runs only after safety service. */
   HAL_GPIO_WritePin(nSLEEP_GPIO_Port, nSLEEP_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(VREF_GPIO_Port, VREF_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LIMIT_EN_GPIO_Port, LIMIT_EN_Pin, GPIO_PIN_RESET);
+  LimitPower_Init(HAL_GetTick());
   HAL_GPIO_WritePin(_485DE_RE_GPIO_Port, _485DE_RE_Pin, GPIO_PIN_RESET);
   adc_cal_status = HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_Delay(100); /* Existing limit-circuit RC settling, with drive asleep. */
@@ -213,6 +214,8 @@ static void Valve_Service(void)
   ValvePort_Read(&inputs);
   uint32_t now = HAL_GetTick();
   Valve_Step(now, &inputs); /* Safety always runs before ADC work. */
+  LimitPower_Service(now,&inputs,Valve_Get(),Valve_CanSleep(now),observed_generation);
+  inputs.limits_invalid=!LimitPower_Valid(); /* Publish a domain change in this same snapshot. */
 #if POWER_LOW_POWER_MODE == 2
   if (PowerPort_TakeStopWake()) Battery_AfterStop(now);
 #endif
@@ -243,6 +246,7 @@ static void Power_Idle(void)
     .valve_busy = !Valve_CanSleep(now), /* Includes input qualification/deferred direction. */
     .adc_busy = adc_busy,
     .uart_busy = RS485_RxBusy() || command_length!=0 || command_overflow!=0,
+    .inputs_busy = !LimitPower_CanSleep(),
     .sleep_ms = budget
   };
   (void)PowerManager_TrySleep(&request);
@@ -365,7 +369,7 @@ static void SendStatus(void)
   int length = snprintf(message, sizeof(message),
       "STATUS count=%lu L1=%u L2=%u L3=%u L4=%u L5=%u nFAULT=%u %s PWM=%lu%% "
       "nSLEEP=%u VREF_EN=%u DIN=%u STATE=%s CURRENT=0x%lX LATCHED=0x%lX HISTORY=0x%lX "
-      "SAFE_PENDING=%u SAFE_INCOMPLETE=%u OPEN_OK=%u SNAP_MS=%lu\r\n",
+      "SAFE_PENDING=%u SAFE_INCOMPLETE=%u OPEN_OK=%u SNAP_MS=%lu LIM_VALID=%u\r\n",
       (unsigned long)rs485_tx_count,
       (unsigned int)snapshot.inputs.open_limit, (unsigned int)snapshot.inputs.close_limit,
       (unsigned int)snapshot.limit3, (unsigned int)snapshot.inputs.wire_break,
@@ -376,7 +380,8 @@ static void SendStatus(void)
       (unsigned long)valve->latched_faults, (unsigned long)valve->history_faults,
       (unsigned int)valve->safety_close_pending,
       (unsigned int)((valve->latched_faults & VALVE_FAULT_SAFETY_INCOMPLETE) != 0),
-      (unsigned int)valve->opening_permitted, (unsigned long)snapshot.captured_ms);
+      (unsigned int)valve->opening_permitted, (unsigned long)snapshot.captured_ms,
+      (unsigned int)!snapshot.inputs.limits_invalid);
   if (length > 0 && (size_t)length < sizeof(message)) RS485_Reply(message);
   else RS485_Reply("ERR status formatting\r\n");
 }

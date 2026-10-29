@@ -3,6 +3,8 @@
 #include "power_rtc.h"
 #include "rs485_rx.h"
 #include "battery_adc_port.h"
+uint8_t LimitPower_Valid(void) { return 1; }
+uint8_t LimitPower_CanSleep(void) { return 1; }
 #define CHECK(x) do { if(!(x))return __LINE__; } while(0)
 unsigned tests_passed;
 GPIO_TypeDef mock_gpioa,mock_gpiob;

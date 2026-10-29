@@ -14,6 +14,7 @@ static uint8_t din_candidate, din_stable, din_valid;
 static uint8_t wire_active, wire_low_timing, rearm_required, rearm_low_timing;
 static uint8_t manual_active, driver_seen;
 static uint8_t sleep_wire_level,sleep_request_level;
+static uint8_t limits_were_invalid;
 
 static void stop_drive(uint32_t now)
 {
@@ -46,7 +47,7 @@ static void refresh_faults(const ValveInputs *in)
   status.current_faults = status.latched_faults &
       (VALVE_FAULT_START | VALVE_FAULT_SAFETY_INCOMPLETE);
   if (wire_active) status.current_faults |= VALVE_FAULT_WIRE;
-  if (in->open_limit && in->close_limit) status.current_faults |= VALVE_FAULT_BOTH_LIMITS;
+  if (!in->limits_invalid && in->open_limit && in->close_limit) status.current_faults |= VALVE_FAULT_BOTH_LIMITS;
   if (driver_seen && in->driver_fault) status.current_faults |= VALVE_FAULT_DRIVER;
   status.history_faults |= status.current_faults;
 }
@@ -83,6 +84,7 @@ void Valve_Init(uint32_t now)
   din_tick = wire_low_tick = rearm_low_tick = now;
   jog_duration = 0; run_duty = 100;
   sleep_wire_level=sleep_request_level=0;
+  limits_were_invalid=0;
   stop_drive(now);
 }
 
@@ -134,18 +136,33 @@ void Valve_Step(uint32_t now, const ValveInputs *in)
       (!din_valid || din_stable != din_candidate))
   { din_valid = 1; din_stable = din_candidate; reached = VALVE_DIR_NONE; }
 
+  /* A powered-down domain is a cached position, not a reached latch for the
+   * next observation. Revalidate the destination from fresh stable inputs. */
+  if(limits_were_invalid && !in->limits_invalid)
+  { reached=VALVE_DIR_NONE;if(stage==VALVE_DRIVE_OFF)status.state=VALVE_UNKNOWN; }
+  limits_were_invalid=in->limits_invalid;
+
   /* Collect simultaneous protection faults BEFORE destination handling. */
-  if (in->open_limit && in->close_limit) latch(VALVE_FAULT_BOTH_LIMITS);
+  if (!in->limits_invalid && in->open_limit && in->close_limit) latch(VALVE_FAULT_BOTH_LIMITS);
   if (in->driver_fault && (stage == VALVE_DRIVE_RUN ||
       (stage == VALVE_DRIVE_WAKE && (uint32_t)(now - stage_tick) >= VALVE_WAKE_SETTLE_MS)))
   { driver_seen = 1; latch(VALVE_FAULT_DRIVER); }
   if (status.latched_faults)
   {
-    if (status.safety_close_pending && (!in->close_limit || in->open_limit))
+    if (status.safety_close_pending && (in->limits_invalid || !in->close_limit || in->open_limit))
       latch(VALVE_FAULT_SAFETY_INCOMPLETE);
     if (stage != VALVE_DRIVE_OFF) stop_drive(now);
     manual_active = 0; status.opening_permitted = 0; status.state = VALVE_FAULT;
     refresh_faults(in); return;
+  }
+
+  if (in->limits_invalid)
+  {
+    if (stage != VALVE_DRIVE_OFF)
+    { stop_drive(now); reached = VALVE_DIR_NONE; status.state = VALVE_UNKNOWN; }
+    if (status.safety_close_pending ||
+        (status.state != VALVE_OPENED && status.state != VALVE_CLOSED))status.state = VALVE_UNKNOWN;
+    refresh_faults(in); return; /* L4/rearm/DIN above remain live; no position decision. */
   }
 
   if (status.safety_close_pending)
@@ -236,7 +253,7 @@ uint8_t Valve_SetDigital(uint8_t enabled, uint32_t now)
 
 uint8_t Valve_ClearFaults(uint32_t now, const ValveInputs *in)
 {
-  if (!status.latched_faults || stage != VALVE_DRIVE_OFF || wire_active || in->wire_break || in->break_event ||
+  if (in->limits_invalid || !status.latched_faults || stage != VALVE_DRIVE_OFF || wire_active || in->wire_break || in->break_event ||
       in->driver_fault || (in->open_limit && in->close_limit)) return 0;
   status.latched_faults = 0; driver_seen = 0; status.state = VALVE_UNKNOWN;
   status.opening_permitted = 0; rearm_required = 1; rearm_low_timing = 0;

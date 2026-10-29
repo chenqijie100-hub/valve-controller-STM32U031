@@ -3,6 +3,7 @@
 #include "main.h"
 #include "valve_port.h"
 #include "rs485_rx.h"
+#include "limit_power.h"
 #if POWER_LOW_POWER_MODE == 2
 #include "power_rtc.h"
 #include "battery_adc_port.h"
@@ -83,14 +84,15 @@ uint8_t PowerPort_Pending(void)
 }
 uint8_t PowerPort_OutputsSafe(void)
 {
-  return (GPIOA->ODR&(nSLEEP_Pin|VREF_Pin))==0 && TIM1->CCR4==0;
+  return LimitPower_CanSleep() && (GPIOA->ODR&(nSLEEP_Pin|VREF_Pin))==0 && TIM1->CCR4==0;
 }
 uint32_t PowerPort_GpioSignature(void)
 {
   return (HAL_GPIO_ReadPin(LIMIT4_GPIO_Port,LIMIT4_Pin)==GPIO_PIN_SET?1U:0U) |
          (HAL_GPIO_ReadPin(LIMIT5_GPIO_Port,LIMIT5_Pin)==GPIO_PIN_SET?2U:0U) |
+         (!LimitPower_Valid()?16U:
          (HAL_GPIO_ReadPin(_1Y_GPIO_Port,_1Y_Pin)==GPIO_PIN_SET?4U:0U) |
-         (HAL_GPIO_ReadPin(_2Y_GPIO_Port,_2Y_Pin)==GPIO_PIN_SET?8U:0U);
+         (HAL_GPIO_ReadPin(_2Y_GPIO_Port,_2Y_Pin)==GPIO_PIN_SET?8U:0U));
 }
 void PowerPort_AlarmIRQ(void)
 {

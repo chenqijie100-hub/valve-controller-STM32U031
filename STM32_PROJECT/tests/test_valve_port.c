@@ -1,6 +1,7 @@
 #include "main.h"
 #include "tim.h"
 #include "valve_port.h"
+#include "limit_power.h"
 #define CHECK(x) do { if (!(x)) return __LINE__; } while (0)
 unsigned tests_passed;
 void *memset(void *p, int v, unsigned size)
@@ -13,6 +14,11 @@ TIM_HandleTypeDef htim1 = { &mock_tim1 };
 static uint32_t mask, inject_pin;
 static uint8_t inject_pwm, pulse;
 static ValveStatus status;
+static uint8_t limit_ready=1;
+uint8_t LimitPower_DriveAllowed(void) { return limit_ready; }
+void LimitPower_Filter(uint32_t now,ValveInputs *in) { (void)now;in->limits_invalid=!limit_ready; }
+uint32_t PowerManager_EventGeneration(void) { return 0; }
+uint32_t HAL_GetTick(void) { return 0; }
 const ValveStatus *Valve_Get(void) { return &status; }
 uint32_t __get_PRIMASK(void) { return mask; }
 void __disable_irq(void) { mask = 1; }
@@ -45,6 +51,7 @@ HAL_StatusTypeDef HAL_TIM_PWM_Start(TIM_HandleTypeDef *t, uint32_t ch)
 static void reset(void)
 {
   mask = inject_pin = inject_pwm = pulse = 0;
+  limit_ready=1;
   GPIOA->IDR = nFLAUT_Pin; GPIOB->IDR = 0;
   EXTI->RPR1 = 0; RCC->APBENR2 = RCC_APBENR2_TIM1EN; TIM1->ARR = 799;
   status = (ValveStatus){.opening_permitted = 1};
@@ -106,6 +113,13 @@ int run_tests(void)
   tests_passed++;
   reset(); ValvePort_EmergencyOff();
   CHECK(GPIOA->BSRR & (nSLEEP_Pin << 16)); CHECK(!(TIM1->BDTR & TIM_BDTR_MOE));
+  CHECK(GPIOA->BSRR & (LIMIT_EN_Pin << 16));
   tests_passed++;
+  reset();limit_ready=0;
+  for(unsigned stage=VALVE_DRIVE_REFERENCE;stage<=VALVE_DRIVE_RUN;++stage)
+  {
+    CHECK(ValvePort_Apply((ValveDriveStage)stage,VALVE_DIR_CLOSE,100)==VALVE_PORT_ERROR);
+    CHECK(!(GPIOA->ODR&nSLEEP_Pin) && TIM1->CCR4==0);tests_passed++;
+  }
   return 0;
 }

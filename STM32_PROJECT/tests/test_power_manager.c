@@ -61,6 +61,7 @@ int run_tests(void)
  CHECK(PowerManager_TrySleep(&r));tests_passed++;
  ValveInputs in={.wire_break=1,.request_open=1,.open_limit=1,.close_limit=1};
  CHECK(PowerManager_Signature(&in)==15); tests_passed++;
+ in.limits_invalid=1;CHECK(PowerManager_Signature(&in)==19);tests_passed++;
  return 0;
 #endif
 }

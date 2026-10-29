@@ -27,6 +27,7 @@ static char response[1024];
 static const char *rx_data;
 static uint32_t mock_sleeps;
 static uint8_t power_inject_wire;
+static uint8_t limit_off_inject;
 static uint8_t mock_stop_woke;
 uint8_t PowerPort_TakeStopWake(void)
 { uint8_t woke=mock_stop_woke;mock_stop_woke=0;return woke; }
@@ -35,10 +36,10 @@ uint32_t PowerPort_Lock(void) { uint32_t old=mask;mask=1;return old; }
 void PowerPort_Unlock(uint32_t value) { mask=value; }
 uint8_t PowerPort_InInterrupt(void) { return 0; }
 uint8_t PowerPort_Pending(void) { return RS485_RxBusy() || ValvePort_EventPending(); }
-uint8_t PowerPort_OutputsSafe(void) { return !ValvePort_Duty() && !ValvePort_DriverAwake(); }
+uint8_t PowerPort_OutputsSafe(void) { return LimitPower_CanSleep() && !ValvePort_Duty() && !ValvePort_DriverAwake(); }
 uint32_t PowerPort_GpioSignature(void)
 { return (GPIOA->IDR&LIMIT4_Pin?1U:0U)|(GPIOB->IDR&LIMIT5_Pin?2U:0U)|
-         (GPIOA->IDR&_1Y_Pin?4U:0U)|(GPIOB->IDR&_2Y_Pin?8U:0U); }
+         (!LimitPower_Valid()?16U:(GPIOA->IDR&_1Y_Pin?4U:0U)|(GPIOB->IDR&_2Y_Pin?8U:0U)); }
 uint8_t PowerPort_Sleep(uint32_t ms)
 {
 #if POWER_LOW_POWER_MODE == 2
@@ -55,16 +56,29 @@ uint8_t PowerPort_Sleep(uint32_t ms)
 
 uint32_t __get_PRIMASK(void) { return mask; }
 void __disable_irq(void) { mask = 1; }
-void __set_PRIMASK(uint32_t value) { mask = value; }
+void __set_PRIMASK(uint32_t value)
+{
+  mask=value;
+  if(!mask && (EXTI->RPR1&LIMIT4_Pin))
+  { EXTI->RPR1&=~LIMIT4_Pin;ValvePort_WireBreakISR();PowerManager_NotifyGPIOFromISR(); }
+}
 void __DSB(void) { }
 void __ISB(void) { }
 /* A register read does not consume a whole millisecond. Advance simulated
- * background time every 16 reads, keeping UART byte transfers below 100 ms. */
-uint32_t HAL_GetTick(void) { if (++tick_calls % 16U == 0) tick++; return tick; }
+ * background time every32 reads: input filtering now adds a second cheap
+ * time read per service; a full ASCII line still fits the100ms TX budget. */
+uint32_t HAL_GetTick(void) { if (++tick_calls % 32U == 0) tick++; return tick; }
 void HAL_GPIO_WritePin(GPIO_TypeDef *p, uint32_t pins, GPIO_PinState state)
-{ if (state) p->ODR |= pins; else p->ODR &= ~pins; }
+{
+  if (state) p->ODR |= pins; else p->ODR &= ~pins;
+  if(p==GPIOA && pins==LIMIT_EN_Pin && state && limit_off_inject)
+  { limit_off_inject=0;GPIOA->IDR|=LIMIT4_Pin;EXTI->RPR1|=LIMIT4_Pin; }
+}
 GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef *p, uint32_t pin)
-{ return (p->IDR & pin) ? GPIO_PIN_SET : GPIO_PIN_RESET; }
+{
+  if((GPIOA->ODR&LIMIT_EN_Pin) && ((p==GPIOA && pin==_1Y_Pin) || (p==GPIOB && pin==_2Y_Pin)))return GPIO_PIN_SET;
+  return (p->IDR & pin) ? GPIO_PIN_SET : GPIO_PIN_RESET;
+}
 void Mock_Compare(uint32_t value) { TIM1->CCR4 = value; }
 HAL_StatusTypeDef HAL_TIM_PWM_Start(TIM_HandleTypeDef *t, uint32_t ch)
 { (void)t; (void)ch; return HAL_OK; }
@@ -112,11 +126,11 @@ static void reset(uint8_t open_request)
   rx_error = tx_error = adc_timeout = 0; huart1.error = 0;
   mock_adc_flags=ADC_FLAG_EOC; adc_starts=0;
   mock_adc=(MockADC){.CR=ADC_CR_ADVREGEN};mock_adc_common=(MockADCCommon){.CCR=ADC_CCR_VREFEN};
-  mock_sleeps=0;power_inject_wire=mock_stop_woke=0;PowerManager_Init();
+  mock_sleeps=0;power_inject_wire=mock_stop_woke=limit_off_inject=0;PowerManager_Init();
   command_length = command_overflow = 0; rx_data = 0;
   GPIOA->IDR = nFLAUT_Pin; GPIOB->IDR = open_request ? LIMIT5_Pin : 0;
   EXTI->RPR1 = 0; RCC->APBENR2 = RCC_APBENR2_TIM1EN; TIM1->ARR = 799;
-  ValvePort_Init(); ValveInputs in; ValvePort_Read(&in);
+  LimitPower_Init(tick);ValvePort_Init(); ValveInputs in; ValvePort_Read(&in);
   RS485_RxInit();
   Battery_Init(tick,1); AppStatus_Init();
   Valve_Init(tick); valve_initialized = 1; adc_cal_status = HAL_OK;
@@ -190,7 +204,12 @@ int run_tests(void)
 
   /* Idle hook refuses all running phases in both profiles. */
   reset(1);Power_Idle();CHECK(mock_sleeps==0);tests_passed++;
-  GPIOA->IDR|=_1Y_Pin;advance(1);Power_Idle();
+  GPIOA->IDR|=_1Y_Pin;advance(1);
+#if POWER_LOW_POWER_MODE == 2
+  Power_Idle();CHECK(mock_sleeps==0);tests_passed++;
+  advance(LIMIT_POWER_CONFIRM_MS);
+#endif
+  Power_Idle();
 #if POWER_LOW_POWER_MODE
   CHECK(mock_sleeps==1);tests_passed++;
   advance(2); /* Allow nonblocking analog stabilization after Stop wake. */
@@ -214,7 +233,7 @@ int run_tests(void)
   CHECK(mock_sleeps==0);tests_passed++;
   advance(500);Power_Idle();CHECK(mock_sleeps==1);tests_passed++;
   /* A wire fault during post-Stop analog settling outranks ADC work. */
-  reset(1);GPIOA->IDR|=_1Y_Pin;advance(1);Power_Idle();
+  reset(1);GPIOA->IDR|=_1Y_Pin;advance(1);advance(LIMIT_POWER_CONFIRM_MS);Power_Idle();
   CHECK(!BatteryAdc_Ready(tick));unsigned starts_before_settle=adc_starts;
   GPIOA->IDR|=LIMIT4_Pin;ValvePort_WireBreakISR();Valve_Service();
   CHECK(Valve_Get()->safety_close_pending && !Valve_Get()->opening_permitted);
@@ -222,6 +241,60 @@ int run_tests(void)
   advance(2);CHECK(adc_starts==starts_before_settle+1);
   AppStatus after_settle;AppStatus_Get(tick,&after_settle);
   CHECK(Valve_Get()->safety_close_pending && after_settle.battery.valid);tests_passed++;
+
+  /* Actual circuit model: two false MCU highs while the pull-ups are off. */
+  reset(0);GPIOB->IDR|=_2Y_Pin;advance(1);advance(LIMIT_POWER_CONFIRM_MS);
+  CHECK((GPIOA->ODR&LIMIT_EN_Pin) && !LimitPower_Valid() && !ValvePort_Duty());
+  CHECK(HAL_GPIO_ReadPin(GPIOA,_1Y_Pin)==GPIO_PIN_SET && HAL_GPIO_ReadPin(GPIOB,_2Y_Pin)==GPIO_PIN_SET);
+  advance(50);CHECK(!Valve_Get()->latched_faults && Valve_Get()->state==VALVE_CLOSED);tests_passed++;
+  command("STATUS\n");CHECK(strstr(response,"LIM_VALID=0") && strstr(response,"STATE=CLOSED"));tests_passed++;
+  GPIOB->IDR|=LIMIT5_Pin;PowerManager_NotifyGPIOFromISR();advance(0);
+  CHECK(!(GPIOA->ODR&LIMIT_EN_Pin) && !LimitPower_Valid() && !ValvePort_Duty());
+  uint32_t no_sleep=mock_sleeps;Power_Idle();CHECK(mock_sleeps==no_sleep);tests_passed++;
+  GPIOA->IDR|=_1Y_Pin; /* A temporary false dual limit while the RC is settling. */
+  advance(50);CHECK(!Valve_Get()->latched_faults && !ValvePort_Duty());tests_passed++;
+  GPIOA->IDR&=~_1Y_Pin;advance(50);advance(2000);advance(20);advance(2);
+  CHECK(Valve_Get()->state==VALVE_OPENING && ValvePort_Duty()==100 && !(GPIOA->ODR&LIMIT_EN_Pin));tests_passed++;
+  GPIOB->IDR&=~_2Y_Pin;GPIOA->IDR|=_1Y_Pin;advance(1);advance(LIMIT_POWER_CONFIRM_MS);
+  CHECK(GPIOA->ODR&LIMIT_EN_Pin);tests_passed++;
+  GPIOA->IDR|=LIMIT4_Pin;ValvePort_WireBreakISR();PowerManager_NotifyGPIOFromISR();advance(0);
+  CHECK(!(GPIOA->ODR&LIMIT_EN_Pin) && Valve_Get()->safety_close_pending && !Valve_Get()->opening_permitted);
+  CHECK(!ValvePort_Duty());tests_passed++;
+  GPIOA->IDR&=~LIMIT4_Pin;advance(50);
+  CHECK(Valve_Get()->safety_close_pending && !ValvePort_Duty());tests_passed++;
+  advance(2000);advance(20);advance(2);
+  CHECK(ValvePort_Duty()==100 && Valve_Get()->state==VALVE_CLOSING && !(GPIOA->ODR&LIMIT_EN_Pin));tests_passed++;
+  GPIOA->IDR&=~_1Y_Pin;GPIOB->IDR|=_2Y_Pin;advance(1);advance(200);
+  CHECK(!Valve_Get()->safety_close_pending && Valve_Get()->state==VALVE_CLOSED && !ValvePort_Duty());
+  advance(500);CHECK(!ValvePort_Duty() && !Valve_Get()->opening_permitted);tests_passed++;
+  GPIOB->IDR&=~LIMIT5_Pin;PowerManager_NotifyGPIOFromISR();advance(200);advance(200);advance(100);
+  CHECK(GPIOA->ODR&LIMIT_EN_Pin);
+  GPIOB->IDR|=LIMIT5_Pin;PowerManager_NotifyGPIOFromISR();advance(0);
+  CHECK(!ValvePort_Duty() && !LimitPower_Valid());advance(100);advance(2000);advance(20);advance(2);
+  CHECK(ValvePort_Duty()==100 && Valve_Get()->state==VALVE_OPENING);tests_passed++;
+
+  reset(0);GPIOB->IDR|=_2Y_Pin;advance(1);advance(LIMIT_POWER_CONFIRM_MS);
+  CHECK(GPIOA->ODR&LIMIT_EN_Pin);command("RUNA\n");
+  CHECK(!(GPIOA->ODR&LIMIT_EN_Pin) && !LimitPower_Valid() && !ValvePort_Duty());tests_passed++;
+
+  /* Wire arrives at the PA2-high write. It prevents sleep and is not consumed. */
+  reset(0);GPIOB->IDR|=_2Y_Pin;advance(1);tick+=LIMIT_POWER_CONFIRM_MS;limit_off_inject=1;
+  Valve_Service();no_sleep=mock_sleeps;Power_Idle();CHECK(mock_sleeps==no_sleep);
+  Valve_Service();CHECK(Valve_Get()->safety_close_pending && !(GPIOA->ODR&LIMIT_EN_Pin));tests_passed++;
+  /* STOP/DINOFF clear the reached latch; a real observed endpoint must still
+   * remain cached while off, rather than cycling the supply indefinitely. */
+  for(unsigned cmd=0;cmd<2;++cmd)
+  {
+    reset(0);GPIOB->IDR|=_2Y_Pin;advance(1);advance(LIMIT_POWER_CONFIRM_MS);
+    command(cmd?"DINOFF\n":"STOP\n");advance(100);advance(100);
+    CHECK(GPIOA->ODR&LIMIT_EN_Pin);uint32_t enable_count=limit_power_enable_count;
+    for(unsigned repeat=0;repeat<5;++repeat)advance(1000);
+    CHECK((GPIOA->ODR&LIMIT_EN_Pin) && limit_power_enable_count==enable_count);
+    CHECK(Valve_Get()->state==VALVE_CLOSED && !Valve_Get()->latched_faults);tests_passed++;
+  }
+  reset(0);GPIOB->IDR|=_2Y_Pin;advance(1);tick+=LIMIT_POWER_CONFIRM_MS;Valve_Service();
+  AppStatus at_cutoff;AppStatus_Get(tick,&at_cutoff);
+  CHECK((GPIOA->ODR&LIMIT_EN_Pin) && at_cutoff.inputs.limits_invalid);tests_passed++;
 #endif
   return 0;
 }

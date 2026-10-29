@@ -1,6 +1,8 @@
 #include "valve_port.h"
 #include "main.h"
 #include "tim.h"
+#include "limit_power.h"
+#include "power_manager.h"
 
 static uint8_t ready;
 static volatile uint8_t wire_event, opening, awake;
@@ -39,7 +41,7 @@ ValvePortResult ValvePort_Apply(ValveDriveStage next, ValveDirection dir, uint32
   { quick_off(); opening = 0; __set_PRIMASK(mask); return VALVE_PORT_OK; }
 
   /* Every write capable of enabling the bridge passes this same guard. */
-  if (!ready || Valve_Get()->latched_faults || percent == 0 || percent > 100 ||
+  if (!ready || !LimitPower_DriveAllowed() || Valve_Get()->latched_faults || percent == 0 || percent > 100 ||
       (dir != VALVE_DIR_OPEN && dir != VALVE_DIR_CLOSE) ||
       next < VALVE_DRIVE_REFERENCE || next > VALVE_DRIVE_RUN)
     result = VALVE_PORT_ERROR;
@@ -94,6 +96,7 @@ void ValvePort_Read(ValveInputs *in)
   in->request_open = HAL_GPIO_ReadPin(LIMIT5_GPIO_Port, LIMIT5_Pin) == GPIO_PIN_SET;
   /* An opening interrupted into sleep must not manufacture an awake fault. */
   in->driver_fault = awake && HAL_GPIO_ReadPin(nFLAUT_GPIO_Port, nFLAUT_Pin) == GPIO_PIN_RESET;
+  LimitPower_Filter(HAL_GetTick(),in); /* One validity gate for control and debug reads. */
   __set_PRIMASK(mask);
 }
 
@@ -108,6 +111,24 @@ uint32_t ValvePort_Duty(void) { return applied_duty; }
 uint8_t ValvePort_DriverAwake(void) { return awake; }
 uint8_t ValvePort_EventPending(void) { return wire_event; }
 
+void LimitPowerPort_SetEnabled(uint8_t enabled)
+{ HAL_GPIO_WritePin(LIMIT_EN_GPIO_Port,LIMIT_EN_Pin,enabled?GPIO_PIN_RESET:GPIO_PIN_SET); }
+uint8_t LimitPowerPort_IsEnabled(void)
+{ return (LIMIT_EN_GPIO_Port->ODR&LIMIT_EN_Pin)==0; }
+uint8_t LimitPowerPort_IdleSafe(const ValveInputs *in,uint32_t generation)
+{
+  if(PowerManager_EventGeneration()!=generation || wire_event || in->break_event ||
+     applied_duty || awake || TIM1->CCR4 ||
+     (GPIOA->ODR&(nSLEEP_Pin|VREF_Pin)) ||
+     ((EXTI->RPR1|EXTI->FPR1)&(LIMIT4_Pin|LIMIT5_Pin)) ||
+     HAL_GPIO_ReadPin(LIMIT4_GPIO_Port,LIMIT4_Pin)!=(in->wire_break?GPIO_PIN_SET:GPIO_PIN_RESET) ||
+     HAL_GPIO_ReadPin(LIMIT5_GPIO_Port,LIMIT5_Pin)!=(in->request_open?GPIO_PIN_SET:GPIO_PIN_RESET))return 0;
+  if(!in->limits_invalid &&
+     (HAL_GPIO_ReadPin(_1Y_GPIO_Port,_1Y_Pin)!=(in->open_limit?GPIO_PIN_SET:GPIO_PIN_RESET) ||
+      HAL_GPIO_ReadPin(_2Y_GPIO_Port,_2Y_Pin)!=(in->close_limit?GPIO_PIN_SET:GPIO_PIN_RESET)))return 0;
+  return 1;
+}
+
 void ValvePort_EmergencyOff(void)
 {
   /* HAL/tick/handle independent, including failures before GPIO/TIM init.
@@ -115,9 +136,9 @@ void ValvePort_EmergencyOff(void)
   __disable_irq();
   RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
   (void)RCC->IOPENR;
-  GPIOA->BSRR = ((uint32_t)(nSLEEP_Pin | VREF_Pin | GPIO_PIN_11)) << 16;
-  GPIOA->MODER = (GPIOA->MODER & ~((3UL << 18) | (3UL << 10) | (3UL << 22))) |
-                 (1UL << 18) | (1UL << 10) | (1UL << 22);
+  GPIOA->BSRR = ((uint32_t)(nSLEEP_Pin | VREF_Pin | GPIO_PIN_11 | LIMIT_EN_Pin)) << 16;
+  GPIOA->MODER = (GPIOA->MODER & ~((3UL << 18) | (3UL << 10) | (3UL << 22) | (3UL << 4))) |
+                 (1UL << 18) | (1UL << 10) | (1UL << 22) | (1UL << 4);
   if (RCC->APBENR2 & RCC_APBENR2_TIM1EN)
   { TIM1->CCR4 = 0; TIM1->BDTR &= ~TIM_BDTR_MOE; }
   awake = 0; applied_duty = 0; ready = 0;

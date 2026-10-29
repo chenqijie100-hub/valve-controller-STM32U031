@@ -1,6 +1,9 @@
 #include "main.h"
 #include "power_port.h"
 #include "power_manager.h"
+static uint8_t limits_valid=1,limits_sleep=1;
+uint8_t LimitPower_Valid(void) { return limits_valid; }
+uint8_t LimitPower_CanSleep(void) { return limits_sleep; }
 #define CHECK(x) do { if(!(x))return __LINE__; } while(0)
 unsigned tests_passed;
 GPIO_TypeDef mock_gpioa,mock_gpiob;
@@ -71,6 +74,9 @@ int run_tests(void)
  CHECK(PowerPort_OutputsSafe());GPIOA->ODR=nSLEEP_Pin;CHECK(!PowerPort_OutputsSafe());
  GPIOA->ODR=VREF_Pin;CHECK(!PowerPort_OutputsSafe());GPIOA->ODR=0;TIM1->CCR4=400;
  CHECK(!PowerPort_OutputsSafe());TIM1->CCR4=0;tests_passed++;
+ limits_valid=0;GPIOA->IDR=_1Y_Pin;GPIOB->IDR=_2Y_Pin;
+ CHECK(PowerPort_GpioSignature()==16);limits_sleep=0;CHECK(!PowerPort_OutputsSafe());
+ limits_valid=limits_sleep=1;GPIOA->IDR=GPIOB->IDR=0;tests_passed++;
  mask=1;uint32_t before=HAL_GetTick();
  CHECK(PowerPort_Sleep(250) && sleeps==1 && suspended==1 && resumed==1 && mask==1);
  CHECK(HAL_GetTick()-before==100 && !(TIM2->DIER&TIM_DIER_CC1IE));tests_passed++;

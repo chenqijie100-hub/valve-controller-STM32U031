@@ -18,7 +18,7 @@ void PowerManager_NotifyGPIOFromISR(void) { generation++; }
 uint32_t PowerManager_EventGeneration(void) { return generation; }
 uint32_t PowerManager_Signature(const ValveInputs *i)
 { return (uint32_t)i->wire_break | ((uint32_t)i->request_open<<1) |
-         ((uint32_t)i->open_limit<<2) | ((uint32_t)i->close_limit<<3); }
+         (i->limits_invalid?16U:((uint32_t)i->open_limit<<2)|((uint32_t)i->close_limit<<3)); }
 void PowerManager_MarkServiced(uint32_t g,uint32_t s)
 { processed_generation=g;serviced_signature=s; }
 uint8_t PowerManager_TrySleep(const PowerRequest *r)

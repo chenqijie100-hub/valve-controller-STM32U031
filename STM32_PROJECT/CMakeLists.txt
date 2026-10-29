@@ -53,6 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/power_manager.c
     Core/Src/power_port.c
     Core/Src/power_rtc.c
+    Core/Src/limit_power.c
     # Add user sources here
 )
 

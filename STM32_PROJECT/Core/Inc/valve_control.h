@@ -16,6 +16,7 @@ enum {
 };
 typedef struct {
   uint8_t open_limit, close_limit, wire_break, request_open, driver_fault, break_event;
+  uint8_t limits_invalid; /* 1: cached/unpowered/settling; never use as live position. */
 } ValveInputs;
 typedef struct {
   ValveState state;

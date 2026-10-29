@@ -77,7 +77,7 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
             cpu.hook_add(UC_HOOK_MEM_READ, rtc_read_hook)
         cpu.reg_write(UC_ARM_REG_SP, 0x2003FFF0)
         cpu.reg_write(UC_ARM_REG_LR, sentinel | 1)
-        cpu.emu_start(symbols['run_tests'] | 1, sentinel, count=20000000)
+        cpu.emu_start(symbols['run_tests'] | 1, sentinel, count=60000000)
         result = cpu.reg_read(UC_ARM_REG_R0)
         if cpu.reg_read(UC_ARM_REG_PC) != sentinel:
             raise AssertionError(f'{name}: did not return (instruction limit)')
@@ -89,6 +89,9 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
         print(f'PASS {name}: {cases} scenarios')
 
 if __name__ == '__main__':
+    execute('limit_power_stop', ['Core/Src/limit_power.c','tests/test_limit_power.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=2'])
+    execute('limit_power_debug', ['Core/Src/limit_power.c','tests/test_limit_power.c'], ['Core/Inc'])
+    execute('limit_power_sleep', ['Core/Src/limit_power.c','tests/test_limit_power.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=1'])
     execute('power_manager_low', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=1'])
     execute('power_manager_debug', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'])
     execute('power_manager_stop', ['Core/Src/power_manager.c','tests/test_power_manager.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=2'])
@@ -103,7 +106,7 @@ if __name__ == '__main__':
     execute('port', ['Core/Src/valve_port.c', 'tests/test_valve_port.c'], ['tests/mocks', 'Core/Inc'])
     app_sources=['Core/Src/power_manager.c','Core/Src/battery_monitor.c','Core/Src/battery_adc_port.c',
                  'Core/Src/app_status.c','Core/Src/rs485_rx.c','Core/Src/valve_control.c',
-                 'Core/Src/valve_port.c','tests/test_valve_app.c','tests/test_runtime.c']
+                 'Core/Src/valve_port.c','Core/Src/limit_power.c','tests/test_valve_app.c','tests/test_runtime.c']
     execute('application_debug', app_sources, ['tests/mocks','Core/Inc'], libs=('-lc','-lgcc'))
     execute('application_low', app_sources, ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=1'], libs=('-lc','-lgcc'))
     execute('application_stop', app_sources, ['tests/mocks','Core/Inc'], ['POWER_LOW_POWER_MODE=2'], libs=('-lc','-lgcc'))

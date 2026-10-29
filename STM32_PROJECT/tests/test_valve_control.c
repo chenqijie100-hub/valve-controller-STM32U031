@@ -182,5 +182,29 @@ int run_tests(void)
   CHECK(!Valve_ClearFaults(now, &input));
   step(1900); step(20); step(2);
   CHECK(output == VALVE_DRIVE_RUN && direction == VALVE_DIR_CLOSE); tests_passed++;
+  /* Unpowered/settling limits never manufacture a fault or a destination. */
+  reset();input.limits_invalid=1;input.open_limit=input.close_limit=1;step(5000);
+  CHECK(!Valve_Get()->latched_faults && Valve_Get()->state==VALVE_UNKNOWN && output==VALVE_DRIVE_OFF);tests_passed++;
+  reset();input.close_limit=1;step(50);CHECK(Valve_Get()->state==VALVE_CLOSED);
+  input.limits_invalid=1;input.open_limit=1;step(1);
+  CHECK(!Valve_Get()->latched_faults && Valve_Get()->state==VALVE_CLOSED);tests_passed++;
+  input.wire_break=1;step(1);
+  CHECK(Valve_Get()->safety_close_pending && !Valve_Get()->opening_permitted && output==VALVE_DRIVE_OFF);
+  CHECK(Valve_Get()->state!=VALVE_CLOSED);tests_passed++;
+  input.limits_invalid=0;input.open_limit=0;input.close_limit=0;step(2000);step(20);step(2);
+  CHECK(direction==VALVE_DIR_CLOSE && output==VALVE_DRIVE_RUN);tests_passed++;
+  input.close_limit=1;step(1);CHECK(!Valve_Get()->safety_close_pending && Valve_Get()->state==VALVE_CLOSED);tests_passed++;
+  reset();input.open_limit=input.close_limit=1;step(1);
+  input.limits_invalid=1;input.open_limit=input.close_limit=0;
+  CHECK(!Valve_ClearFaults(now,&input));tests_passed++;
+  reset();input.request_open=1;start();CHECK(output==VALVE_DRIVE_RUN);
+  input.limits_invalid=1;input.open_limit=1;step(1);
+  CHECK(output==VALVE_DRIVE_OFF && Valve_Get()->state==VALVE_UNKNOWN);tests_passed++;
+  reset();input.close_limit=1;step(50);input.limits_invalid=1;step(1);
+  input.limits_invalid=0;input.open_limit=input.close_limit=0;step(1);
+  CHECK(Valve_Get()->state!=VALVE_CLOSED && !Valve_CanSleep(now));tests_passed++;
+  reset();input.close_limit=1;step(50);CHECK(Valve_Stop(now));step(1);
+  CHECK(Valve_Get()->state==VALVE_CLOSED);input.limits_invalid=1;step(1);
+  CHECK(Valve_Get()->state==VALVE_CLOSED);tests_passed++;
   return 0;
 }

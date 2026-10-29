@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-29",
+  "base_commit": "c2c61a593d31432677b1af38f819242fbd46e38a",
+  "scope": "Automatic idle limit pull-up shutdown in Stop1 profile2; no Push; new board acceptance pending",
+  "modified": [
+    "STM32_PROJECT/CMakeLists.txt",
+    "STM32_PROJECT/Core/Inc/valve_control.h",
+    "STM32_PROJECT/Core/Src/main.c",
+    "STM32_PROJECT/Core/Src/power_manager.c",
+    "STM32_PROJECT/Core/Src/power_port.c",
+    "STM32_PROJECT/Core/Src/valve_control.c",
+    "STM32_PROJECT/Core/Src/valve_port.c",
+    "STM32_PROJECT/STM32CubeIDE/.project",
+    "STM32_PROJECT/tests/run_phase1.py",
+    "STM32_PROJECT/tests/test_power_manager.c",
+    "STM32_PROJECT/tests/test_power_port.c",
+    "STM32_PROJECT/tests/test_power_stop.c",
+    "STM32_PROJECT/tests/test_valve_app.c",
+    "STM32_PROJECT/tests/test_valve_control.c",
+    "STM32_PROJECT/tests/test_valve_port.c"
+  ],
+  "added": [
+    "STM32_PROJECT/Core/Inc/limit_power.h",
+    "STM32_PROJECT/Core/Src/limit_power.c",
+    "STM32_PROJECT/tests/test_limit_power.c",
+    "STM32_PROJECT/docs/limit-power-plan.md",
+    "STM32_PROJECT/docs/limit-power-report.md",
+    "STM32_PROJECT/docs/limit-power-changes.json"
+  ],
+  "deleted": [],
+  "user_change_preserved_excluded": "STM32_PROJECT/Core/Inc/power_config.h",
+  "bench_backup_sha256": {
+    "main.c": "2ca912cd447d2551455fc43c214308167fd5f2890935a78a27b4d1ded82d637b",
+    "power_config.h": "ae022fb9980633e3722ac1e07014c4e865a1fb45f7a0dfe94c776c5369b86c93",
+    "working.patch": "b69972c7407bc528a2d18525935761401252e38f42658b2bacc4e791bc01d9d1"
+  },
+  "protected_unchanged": [
+    "STM32_PROJECT/Core/Src/adc.c",
+    "STM32_PROJECT/Core/Src/tim.c",
+    "STM32_PROJECT/Core/Src/gpio.c",
+    "STM32_PROJECT/Core/Src/usart.c",
+    "STM32_PROJECT/Core/Src/rtc.c",
+    "STM32_PROJECT/Core/Src/stm32u0xx_it.c",
+    "STM32_PROJECT/Core/Inc/stm32u0xx_it.h",
+    "STM32_PROJECT/Core/Src/battery_monitor.c",
+    "STM32_PROJECT/Core/Inc/battery_monitor.h",
+    "STM32_PROJECT/Core/Src/battery_adc_port.c",
+    "STM32_PROJECT/Core/Inc/battery_adc_port.h",
+    "STM32_PROJECT/Core/Src/app_status.c",
+    "STM32_PROJECT/Core/Inc/app_status.h",
+    "STM32_PROJECT/Core/Src/power_rtc.c",
+    "STM32_PROJECT/Core/Inc/power_rtc.h",
+    "STM32_PROJECT/Core/Inc/valve_config.h",
+    "STM32_PROJECT/STM32_PROJECT.ioc"
+  ],
+  "host_scenarios_passed": 358,
+  "clean_builds": {
+    "debug": {
+      "flash_bytes": 40384,
+      "ram_bytes": 2920
+    },
+    "sleep": {
+      "flash_bytes": 42172,
+      "ram_bytes": 2952
+    },
+    "stop1": {
+      "flash_bytes": 45392,
+      "ram_bytes": 2968
+    }
+  },
+  "sha256_excluding_manifest_itself": {
+    "STM32_PROJECT/CMakeLists.txt": "f94a6dc3825171aceb6b64affd4c49cffc344b2cbd65441bc09ad7580e6dd834",
+    "STM32_PROJECT/Core/Inc/limit_power.h": "3bf1e26c8b584c128bd1f51e1a58315f05a4abd9b1993f96bcf7e10898252caa",
+    "STM32_PROJECT/Core/Inc/valve_control.h": "8783765d72a478cf5da551ecde983e51aca6e31e0362e1727a7040854a691054",
+    "STM32_PROJECT/Core/Src/limit_power.c": "94dc22ef2192468668b2e5af3e926b2da2ab9b9eb1a2055e3a50cfaebe04e67b",
+    "STM32_PROJECT/Core/Src/main.c": "8308fa2743656d3aff8888657f2f58bda537bc480c923cc219a16b6b8431589c",
+    "STM32_PROJECT/Core/Src/power_manager.c": "0cf17940b5d7f795208686350cfe93249dda1292915538b16dc8c7916eb8a036",
+    "STM32_PROJECT/Core/Src/power_port.c": "419dc2e63bb4546429bd76549cabada2a54309916ee4122620fc76259b515ca1",
+    "STM32_PROJECT/Core/Src/valve_control.c": "f68c0b58cfa2fdb4b8106bd118874db727f698312b2d129542b7a3bbf2d3a5f6",
+    "STM32_PROJECT/Core/Src/valve_port.c": "248402504f7c7faf26730b7f6f860135731557f677a841f86c7aab091e04bd85",
+    "STM32_PROJECT/STM32CubeIDE/.project": "3dea27ec69f958ec1525259eecab637d78bb97e2e343161748e4be0b436553d1",
+    "STM32_PROJECT/docs/limit-power-plan.md": "6ef9caf320599a1ece748ff14abcf987be7667fbcddc2723a5b1ff20a882d6d6",
+    "STM32_PROJECT/docs/limit-power-report.md": "c2ade3a6960261b2dccec030588359f6892e523863d3b690aae2065e80753962",
+    "STM32_PROJECT/tests/run_phase1.py": "5bf0c06b9592439b293212dd00ece5478cd066805e67e9171165656ce8c4214b",
+    "STM32_PROJECT/tests/test_limit_power.c": "3faab737b880d3041a3e704bb43bbfd7fc3c55c1cb93fea99f17b3fd3e857c24",
+    "STM32_PROJECT/tests/test_power_manager.c": "b549f538bf432ea8e30cf4713aa7bc453d2ffcd0d7aa64c4781fbe5b22fface3",
+    "STM32_PROJECT/tests/test_power_port.c": "867bc6d52dcdbcf68fe5eb89fea5c29bd43d9c86d62c7748fb6b5278364e3976",
+    "STM32_PROJECT/tests/test_power_stop.c": "cfbab768008848f345f9bce64a289be372a12c08aa794a5b23dacf750ca8fadc",
+    "STM32_PROJECT/tests/test_valve_app.c": "b2b1951df8e668f15c3627bb138d6a54e3e2d14d2b08adc8bb25c30e27368b3d",
+    "STM32_PROJECT/tests/test_valve_control.c": "071da9557e4ca1a6860ceb9ce3cad9b098876eb41c63f8898883454247638c77",
+    "STM32_PROJECT/tests/test_valve_port.c": "17a3a97bc966d00f5204f1c20ab3a346e1b046a866dbe25a8a6e372362484c51"
+  }
+}
