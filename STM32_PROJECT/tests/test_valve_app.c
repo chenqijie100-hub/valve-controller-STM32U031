@@ -8,6 +8,8 @@
 #include "battery_adc_port.h"
 #define CHECK(x) do { if (!(x)) return __LINE__; } while (0)
 unsigned tests_passed;
+void CommPower_Init(void) {}
+void CommPort_EmergencyOff(void) {}
 GPIO_TypeDef mock_gpioa, mock_gpiob;
 TIM_TypeDef mock_tim1;
 RCC_TypeDef mock_rcc;

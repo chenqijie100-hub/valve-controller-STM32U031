@@ -54,6 +54,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/power_port.c
     Core/Src/power_rtc.c
     Core/Src/limit_power.c
+    Core/Src/modbus_rtu_master.c
+    Core/Src/valve_comm_service.c
+    Core/Src/comm_power.c
+    Core/Src/comm_port.c
     # Add user sources here
 )
 
@@ -72,9 +76,13 @@ elseif(VALVE_LOW_POWER)
 else()
     set(VALVE_POWER_PROFILE 0)
 endif()
+option(VALVE_MODBUS "Enable V1.0 writes to an isolated or confirmed slave" OFF)
+option(VALVE_COMM_9V "Enable next-board 9V communication power hardware" OFF)
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     POWER_LOW_POWER_MODE=${VALVE_POWER_PROFILE}
+    VALVE_MODBUS_ENABLE=$<BOOL:${VALVE_MODBUS}>
+    VALVE_COMM_9V_ENABLE=$<BOOL:${VALVE_COMM_9V}>
     # Add user defined symbols
 )
 

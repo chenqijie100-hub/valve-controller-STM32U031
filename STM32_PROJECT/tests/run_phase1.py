@@ -56,6 +56,9 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
         cpu = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
         cpu.mem_map(0x10000, 0x80000)
         cpu.mem_map(0x20000000, 0x40000)
+        if name == 'comm_port':
+            cpu.mem_map(0x40000000, 0x30000)
+            cpu.mem_map(0x50000000, 0x1000)
         for i in range(header[10]):
             kind, offset, address, _, size, _, _, _ = struct.unpack_from(
                 '<IIIIIIII', data, header[5] + i * header[9])
@@ -89,6 +92,15 @@ def execute(name, sources, include_dirs=(), defines=(), libs=('-lgcc',)):
         print(f'PASS {name}: {cases} scenarios')
 
 if __name__ == '__main__':
+    execute('modbus', ['Core/Src/modbus_rtu_master.c','tests/test_modbus.c'], ['Core/Inc'])
+    execute('comm_service', ['Core/Src/modbus_rtu_master.c','Core/Src/valve_comm_service.c',
+                             'tests/test_valve_comm.c'], ['Core/Inc'], ['VALVE_COMM_9V_ENABLE=1'], libs=('-lc','-lgcc'))
+    execute('comm_without_9v', ['Core/Src/modbus_rtu_master.c','Core/Src/valve_comm_service.c',
+                                 'tests/test_valve_comm_no_9v.c'], ['Core/Inc'], libs=('-lc','-lgcc'))
+    execute('comm_port', ['Core/Src/comm_port.c','tests/test_comm_port.c'],
+            ['Core/Inc','Drivers/STM32U0xx_HAL_Driver/Inc',
+             'Drivers/CMSIS/Device/ST/STM32U0xx/Include','Drivers/CMSIS/Include'],
+            ['STM32U031xx','USE_HAL_DRIVER'])
     execute('limit_power_stop', ['Core/Src/limit_power.c','tests/test_limit_power.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=2'])
     execute('limit_power_debug', ['Core/Src/limit_power.c','tests/test_limit_power.c'], ['Core/Inc'])
     execute('limit_power_sleep', ['Core/Src/limit_power.c','tests/test_limit_power.c'], ['Core/Inc'], ['POWER_LOW_POWER_MODE=1'])

@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "valve_port.h"
+#include "comm_port.h"
 #include "rs485_rx.h"
 #include "power_manager.h"
 #include "power_port.h"
@@ -74,6 +75,7 @@ void NMI_Handler(void)
 {
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
   ValvePort_EmergencyOff();
+  CommPort_EmergencyOff();
 
   /* USER CODE END NonMaskableInt_IRQn 0 */
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
@@ -90,6 +92,7 @@ void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
   ValvePort_EmergencyOff();
+  CommPort_EmergencyOff();
 
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
@@ -183,7 +186,11 @@ void USART1_IRQHandler(void)
   /* USER CODE BEGIN USART1_IRQn 0 */
 
   /* USER CODE END USART1_IRQn 0 */
-  RS485_RxIRQ(); /* RX ring owns receive IRQ; TX remains blocking HAL. */
+#if VALVE_MODBUS_ENABLE
+  CommPort_IRQ();
+#else
+  RS485_RxIRQ();
+#endif
   /* USER CODE BEGIN USART1_IRQn 1 */
 
   /* USER CODE END USART1_IRQn 1 */

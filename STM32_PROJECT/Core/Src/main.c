@@ -36,6 +36,8 @@
 #include "power_manager.h"
 #include "power_port.h"
 #include "limit_power.h"
+#include "comm_port.h"
+#include "valve_comm_service.h"
 
 /* USER CODE END Includes */
 
@@ -64,9 +66,11 @@ volatile uint32_t rs485_tx_errors = 0;
 volatile HAL_StatusTypeDef rs485_last_status = HAL_OK;
 volatile uint32_t rs485_rx_bytes = 0;
 volatile uint32_t rs485_rx_errors = 0;
+#if !VALVE_MODBUS_ENABLE
 static char command_buffer[32];
 static uint32_t command_length = 0;
 static uint8_t command_overflow = 0;
+#endif
 volatile HAL_StatusTypeDef adc_cal_status = HAL_ERROR;
 volatile HAL_StatusTypeDef adc_last_status = HAL_ERROR;
 volatile uint32_t adc_bat_raw = 0;
@@ -79,13 +83,15 @@ static uint8_t valve_initialized = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+#if !VALVE_MODBUS_ENABLE
 static HAL_StatusTypeDef RS485_Send(const uint8_t *data, uint16_t length);
 static void RS485_Reply(const char *text);
 static void RS485_ProcessInput(void);
 static void SendStatus(void);
+static void Service_Wait(uint32_t duration_ms);
+#endif
 static void Valve_Service(void);
 static void Power_Idle(void);
-static void Service_Wait(uint32_t duration_ms);
 
 /* USER CODE END PFP */
 
@@ -112,6 +118,9 @@ int main(void)
   MX_GPIO_Init(); /* Safe driver outputs before clock/peripheral setup. */
 
   /* USER CODE BEGIN Init */
+#if VALVE_MODBUS_ENABLE && VALVE_COMM_9V_ENABLE
+  CommPower_Init(); /* Preload PA1 low before configuring it as output. */
+#endif
 
   /* USER CODE END Init */
 
@@ -137,7 +146,11 @@ int main(void)
   HAL_Delay(100); /* Existing limit-circuit RC settling, with drive asleep. */
   ValvePort_Init();
   Valve_Init(HAL_GetTick());
+#if VALVE_MODBUS_ENABLE
+  ValveComm_Init();
+#else
   RS485_RxInit();
+#endif
   Battery_Init(HAL_GetTick(), adc_cal_status == HAL_OK);
   AppStatus_Init();
   PowerManager_Init();
@@ -154,7 +167,17 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     Valve_Service();
+#if VALVE_MODBUS_ENABLE
+    AppStatus snapshot;
+    uint32_t now = HAL_GetTick();
+    AppStatus_Get(now, &snapshot);
+    ValveComm_Service(now, &snapshot,
+        !Valve_CanSleep(now) || !LimitPower_CanSleep() ||
+        ValvePort_DriverAwake() || ValvePort_Duty() ||
+        ValvePort_EventPending() || ((EXTI->RPR1 | EXTI->FPR1) & (LIMIT4_Pin | LIMIT5_Pin)));
+#else
     RS485_ProcessInput();
+#endif
     Power_Idle(); /* Wake returns to fresh safety sampling at loop start. */
   }
   /* USER CODE END 3 */
@@ -245,13 +268,18 @@ static void Power_Idle(void)
     .safety_pending = valve->safety_close_pending,
     .valve_busy = !Valve_CanSleep(now), /* Includes input qualification/deferred direction. */
     .adc_busy = adc_busy,
+#if VALVE_MODBUS_ENABLE
+    .uart_busy = ValveComm_Busy(),
+#else
     .uart_busy = RS485_RxBusy() || command_length!=0 || command_overflow!=0,
+#endif
     .inputs_busy = !LimitPower_CanSleep(),
     .sleep_ms = budget
   };
   (void)PowerManager_TrySleep(&request);
 }
 
+#if !VALVE_MODBUS_ENABLE
 static void Service_Wait(uint32_t duration_ms)
 {
   uint32_t start = HAL_GetTick();
@@ -407,6 +435,7 @@ static HAL_StatusTypeDef RS485_Send(const uint8_t *data, uint16_t length)
   return tx;
 }
 
+#endif
 /* USER CODE END 4 */
 
 /**
@@ -418,6 +447,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   ValvePort_EmergencyOff();
+  CommPort_EmergencyOff();
   while (1)
   {
   }
